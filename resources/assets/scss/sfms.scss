@@ -394,6 +394,60 @@ body {
   min-width: 0;
 }
 
+.cursor-move {
+  cursor: move;
+  touch-action: none;
+}
+
+.sfms-switch {
+  width: 2.5rem !important;
+  height: 1.3rem;
+  cursor: pointer;
+}
+
+// ------------------------------------------------------------------ product cards
+
+.sfms-product-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--#{$prefix}tertiary-bg);
+  color: var(--#{$prefix}secondary-color);
+  font-weight: 700;
+  font-size: 1.75rem;
+  text-decoration: none;
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .sfms-product-badge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    font-size: 0.7rem;
+  }
+}
+
+.sfms-product-card {
+  overflow: hidden;
+
+  .sfms-product-thumb {
+    border-radius: 0;
+  }
+
+  &.is-off .sfms-product-thumb {
+    filter: grayscale(1);
+    opacity: 0.55;
+  }
+}
+
 // Initials avatars: centre the letters.
 .avatar.avatar-title {
   display: inline-flex;
@@ -408,4 +462,9 @@ body {
     text-align: end;
     min-width: 0;
   }
+}
+
+// Dashboard setup checklist rows.
+.sfms-setup-step:hover {
+  background: var(--#{$prefix}tertiary-bg);
 }

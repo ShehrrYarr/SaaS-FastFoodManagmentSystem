@@ -33,6 +33,13 @@ class AppServiceProvider extends ServiceProvider
             EnsureSuperAdmin::class,
         ]);
 
+        // Long-lived processes (Octane workers, the test runner) reuse memory between
+        // requests. Livewire never resets its persistent-middleware state on its own, and
+        // it skips the checks when the "previous" request had the same route, so a
+        // different user's next request could bypass them. Reset it after every request.
+        // (TenantContext is a scoped binding, which Octane and queue workers reset already.)
+        $this->app->terminating(fn () => Livewire::flushState());
+
         // Shop permissions: @can('pos.use'), $this->authorize('menu.manage'), etc.
         Gate::before(function (User $user, string $ability) {
             return Permissions::exists($ability) ? $user->hasPermission($ability) : null;

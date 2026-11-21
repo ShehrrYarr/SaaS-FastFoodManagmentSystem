@@ -2,6 +2,7 @@
 
 namespace App\Actions\Shops;
 
+use App\Models\Account;
 use App\Models\Role;
 use App\Models\Shop;
 use App\Models\User;
@@ -28,6 +29,12 @@ class CreateShop
 
             $this->tenancy->run($shop, function (Shop $shop) use ($ownerData) {
                 $roles = $this->createDefaultRoles();
+
+                Account::create([
+                    'name' => 'Cash Drawer',
+                    'type' => 'cash',
+                    'is_default_cash' => true,
+                ]);
 
                 User::create([
                     'tenant_id' => $shop->id,

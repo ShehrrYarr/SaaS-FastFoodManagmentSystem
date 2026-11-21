@@ -56,6 +56,29 @@ Route::prefix('{shop}')
         Route::middleware(['auth:shop', 'shop.member', 'shop.active'])->group(function () {
             Route::get('/', fn () => redirect()->route('shop.dashboard'))->name('home');
             Route::livewire('dashboard', 'pages::shop.dashboard')->name('dashboard');
+
+            // Each "can:" check also runs on every Livewire action (persistent middleware).
+            Route::livewire('customers', 'pages::shop.customers')->middleware('can:customers.manage')->name('customers.index');
+
+            Route::middleware('can:menu.manage')->group(function () {
+                Route::livewire('categories', 'pages::shop.menu.categories')->name('categories.index');
+                Route::livewire('products', 'pages::shop.menu.products')->name('products.index');
+                Route::livewire('products/create', 'pages::shop.menu.product-form')->name('products.create');
+                Route::livewire('products/{product}/edit', 'pages::shop.menu.product-form')->whereNumber('product')->name('products.edit');
+                Route::livewire('add-ons', 'pages::shop.menu.modifiers')->name('modifiers.index');
+            });
+
+            Route::livewire('accounts', 'pages::shop.accounts')->middleware('can:accounts.manage')->name('accounts.index');
+
+            Route::middleware('can:floor.manage')->group(function () {
+                Route::livewire('tables', 'pages::shop.tables')->name('tables.index');
+                Route::livewire('waiters', 'pages::shop.waiters')->name('waiters.index');
+            });
+
+            Route::livewire('staff', 'pages::shop.staff')->middleware('can:staff.manage')->name('staff.index');
+            Route::livewire('roles', 'pages::shop.roles')->middleware('can:roles.manage')->name('roles.index');
+            Route::livewire('settings', 'pages::shop.settings')->middleware('can:settings.manage')->name('settings');
+
             Route::post('logout', [LogoutController::class, 'shop'])->name('logout');
         });
     });

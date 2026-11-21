@@ -1,6 +1,6 @@
 # SFMS: Fast-Food Management & POS (Phase 1 spec)
 
-Status: **approved** · 2026-11-21 · M0 and M1 done
+Status: **approved** · 2026-11-21 · M0, M1 and M2 done
 Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 
 ---

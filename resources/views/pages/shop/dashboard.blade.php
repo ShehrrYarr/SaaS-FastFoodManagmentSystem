@@ -24,6 +24,24 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
         return User::ofShop($this->shop)->where('is_active', true)->count();
     }
 
+    /** Setup checklist: only steps the signed-in user is allowed to do. */
+    #[Computed]
+    public function setupSteps(): array
+    {
+        $user = auth('shop')->user();
+
+        $steps = [
+            ['label' => 'Add menu categories', 'count' => \App\Models\Category::query()->count(), 'route' => 'shop.categories.index', 'permission' => 'menu.manage', 'icon' => 'ri-folder-3-line'],
+            ['label' => 'Add products and prices', 'count' => \App\Models\Product::query()->count(), 'route' => 'shop.products.index', 'permission' => 'menu.manage', 'icon' => 'ri-restaurant-line'],
+            ['label' => 'Set up dine-in tables', 'count' => \App\Models\DiningTable::query()->count(), 'route' => 'shop.tables.index', 'permission' => 'floor.manage', 'icon' => 'ri-layout-grid-line'],
+            ['label' => 'Add waiters and riders', 'count' => \App\Models\Waiter::query()->count(), 'route' => 'shop.waiters.index', 'permission' => 'floor.manage', 'icon' => 'ri-team-line'],
+            ['label' => 'Add bank or wallet accounts', 'count' => \App\Models\Account::query()->where('is_default_cash', false)->count(), 'route' => 'shop.accounts.index', 'permission' => 'accounts.manage', 'icon' => 'ri-bank-line'],
+            ['label' => 'Give your staff their logins', 'count' => max(0, User::ofShop($this->shop)->count() - 1), 'route' => 'shop.staff.index', 'permission' => 'staff.manage', 'icon' => 'ri-user-settings-line'],
+        ];
+
+        return array_values(array_filter($steps, fn ($step) => $user->hasPermission($step['permission'])));
+    }
+
     public function greeting(): string
     {
         $hour = now($this->shop->timezone)->hour;
@@ -105,27 +123,35 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
         <div class="col-lg-5">
             <div class="card mb-0 h-100">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Coming next</h5>
+                    @php($done = collect($this->setupSteps)->where('count', '>', 0)->count())
+                    <div class="hstack justify-content-between">
+                        <h5 class="card-title mb-0">Set up your shop</h5>
+                        <span class="fs-13 text-muted">{{ $done }} of {{ count($this->setupSteps) }} done</span>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <ul class="list-unstyled vstack gap-3 mb-0">
-                        <li class="hstack gap-3">
-                            <span class="avatar avatar-sm avatar-title rounded-2 bg-primary-subtle text-primary border-0"><i class="ri-restaurant-line"></i></span>
-                            <span>Menu, tables, waiters, staff, roles and accounts</span>
-                        </li>
-                        <li class="hstack gap-3">
-                            <span class="avatar avatar-sm avatar-title rounded-2 bg-success-subtle text-success border-0"><i class="ri-shopping-basket-2-line"></i></span>
-                            <span>POS, open tabs, kitchen tickets and checkout</span>
-                        </li>
-                        <li class="hstack gap-3">
-                            <span class="avatar avatar-sm avatar-title rounded-2 bg-warning-subtle text-warning border-0"><i class="ri-archive-stack-line"></i></span>
-                            <span>Ingredients, recipes and purchases</span>
-                        </li>
-                        <li class="hstack gap-3">
-                            <span class="avatar avatar-sm avatar-title rounded-2 bg-info-subtle text-info border-0"><i class="ri-bar-chart-box-line"></i></span>
-                            <span>Day close, expenses and reports</span>
-                        </li>
-                    </ul>
+                    @if ($this->setupSteps === [])
+                        <p class="text-muted mb-0">Your manager takes care of setup. The POS arrives in the next update.</p>
+                    @else
+                        <ul class="list-unstyled vstack gap-1 mb-0">
+                            @foreach ($this->setupSteps as $step)
+                                <li>
+                                    <a href="{{ route($step['route']) }}" wire:navigate
+                                       class="hstack gap-3 p-2 rounded-3 text-reset text-decoration-none sfms-setup-step">
+                                        <span class="avatar avatar-sm avatar-title rounded-circle border-0 {{ $step['count'] > 0 ? 'bg-success text-white' : 'bg-light text-muted' }}">
+                                            <i class="{{ $step['count'] > 0 ? 'ri-check-line' : $step['icon'] }}"></i>
+                                        </span>
+                                        <span class="flex-grow-1 {{ $step['count'] > 0 ? 'text-muted' : 'fw-semibold' }}">{{ $step['label'] }}</span>
+                                        @if ($step['count'] > 0)
+                                            <span class="badge bg-success-subtle text-success">{{ $step['count'] }}</span>
+                                        @else
+                                            <i class="ri-arrow-right-s-line text-muted"></i>
+                                        @endif
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
             </div>
         </div>

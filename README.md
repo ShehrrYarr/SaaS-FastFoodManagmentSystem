@@ -8,8 +8,8 @@ The full phase 1 plan and decisions are in [docs/SPEC.md](docs/SPEC.md).
 |---|---|
 | M0 Foundation (Laravel 13, Livewire 4, Herozi layouts, `wire:navigate`) | Done |
 | M1 Tenancy + Super Admin (shops, guards, middleware, roles, shop login) | Done |
-| M2 Shop setup (menu, tables, waiters, staff, roles, accounts) | Next |
-| M3 POS, tabs, KOT, checkout, day close | Planned |
+| M2 Shop setup (menu, tables, waiters, staff, roles, accounts, customers, settings) | Done |
+| M3 POS, tabs, KOT, checkout, day close | Next |
 | M4 Inventory (ingredients, recipes, purchases) | Planned |
 | M5 Money & reports | Planned |
 | M6 Live updates (Reverb), mobile pass, docs | Planned |
@@ -52,6 +52,12 @@ C:\wamp64\bin\mysql\mysql9.1.0\bin\mysql.exe -u root -h 127.0.0.1 -e "CREATE DAT
 php artisan migrate:fresh --seed
 ```
 
+Link public storage (product photos and shop logos are stored there):
+
+```powershell
+php artisan storage:link
+```
+
 Build the front-end assets (required after cloning: `public/assets` is generated and not committed):
 
 ```powershell
@@ -92,6 +98,8 @@ Tests run against the `sfms_testing` MySQL database (see `phpunit.xml`).
 | | | `cashier@ppj.test` / `usman` | Cashier role |
 | Shawarma Stop DHA | http://127.0.0.1:8000/ssd/login | `owner@ssd.test` or `ali` | **Suspended**: shows how blocked shops behave |
 
+Burger Lab and Pizza Point also come with a sample menu (sizes, add-ons and combo deals), tables, waiters, riders, bank/wallet accounts with opening balances, and a few customers.
+
 The home page (http://127.0.0.1:8000) asks for a shop code and forwards to that shop's sign-in page.
 
 Herozi's original demo pages are available locally at http://127.0.0.1:8000/_herozi/index for reference (local environment only).
@@ -122,4 +130,5 @@ Herozi's original demo pages are available locally at http://127.0.0.1:8000/_her
 ## Gotchas
 
 - **MySQL storage engine.** WAMP's MySQL defaults to MyISAM, which has no transactions, row locks or foreign keys. `config/database.php` forces `InnoDB` (override with `DB_ENGINE`); keep it that way, because stock and order numbering depend on row locks.
+- **Livewire state between requests.** Livewire keeps its persistent-middleware state in memory and skips re-running the checks when the previous request had the same route. `AppServiceProvider` flushes that state after every request, so the shop and permission checks can never be skipped in long-running workers (Octane) or tests. Keep that line.
 - **PHP version.** Laravel 13 needs PHP 8.3, and `php -v` on this machine may still report 8.2.

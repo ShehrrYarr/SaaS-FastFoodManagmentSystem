@@ -13,6 +13,12 @@
     const html = document.documentElement;
     const SKIP = ['AUTH_LAYOUT'];
 
+    // Herozi's layout.js calls these from its sidebar.js, which SFMS replaces:
+    // menu groups toggle via the delegated click handler below and wire:current
+    // marks the active link, so they are intentionally no-ops.
+    window.dropdownInit = window.dropdownInit || function () {};
+    window.findActiveMenu = window.findActiveMenu || function () {};
+
     function storedOrDefault(attribute) {
         try {
             return sessionStorage.getItem(attribute) || (window.DEFAULT_VALUES || {})[attribute];

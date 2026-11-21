@@ -24,6 +24,29 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
         return User::ofShop($this->shop)->where('is_active', true)->count();
     }
 
+    #[Computed]
+    public function day()
+    {
+        return app(\App\Services\BusinessDays::class)->current()?->load('openedBy');
+    }
+
+    /** Today's figures, for roles allowed to see them. */
+    #[Computed]
+    public function summary(): ?array
+    {
+        return $this->day && auth('shop')->user()->can('reports.view')
+            ? app(\App\Services\BusinessDays::class)->summary($this->day)
+            : null;
+    }
+
+    #[Computed]
+    public function openTabs(): array
+    {
+        $row = \App\Models\Order::query()->open()->selectRaw('COUNT(*) as n, COALESCE(SUM(grand_total), 0) as total')->first();
+
+        return ['count' => (int) $row->n, 'amount' => $row->total];
+    }
+
     /** Setup checklist: only steps the signed-in user is allowed to do. */
     #[Computed]
     public function setupSteps(): array
@@ -53,17 +76,48 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
 ?>
 
 <div>
-    <x-page-header :title="$this->greeting()" subtitle="Here is your shop at a glance." />
+    @php($tz = $this->shop->timezone)
+    <x-page-header :title="$this->greeting()" :subtitle="$this->day
+            ? 'Business day open since '.$this->day->opened_at->timezone($tz)->format('h:i A').($this->day->openedBy ? ' ('.$this->day->openedBy->name.')' : '').'.'
+            : 'The business day is closed.'">
+        <x-slot:actions>
+            @can('pos.use')
+                @if ($this->day)
+                    <a href="{{ route('shop.tabs') }}" wire:navigate class="btn btn-light btn-touch"><i class="ri-restaurant-2-line"></i>Open tabs</a>
+                    <a href="{{ route('shop.pos') }}" wire:navigate class="btn btn-primary btn-touch"><i class="ri-add-line"></i>New order</a>
+                @endif
+            @endcan
+            @can('day.open_close')
+                @unless ($this->day)
+                    <a href="{{ route('shop.day') }}" wire:navigate class="btn btn-success btn-touch"><i class="ri-sun-line"></i>Open the day</a>
+                @endunless
+            @endcan
+        </x-slot:actions>
+    </x-page-header>
 
     <div class="row g-3 mb-4">
+        @if ($this->summary)
+            <div class="col-6 col-xl-3">
+                <x-kpi label="Sales today" :value="$this->shop->money($this->summary['sales'])" icon="ri-money-dollar-circle-line" tone="success"
+                       :hint="$this->summary['orders'] ? 'Average '.$this->shop->money($this->summary['average']) : null" />
+            </div>
+            <div class="col-6 col-xl-3">
+                <x-kpi label="Orders paid" :value="$this->summary['orders']" icon="ri-file-list-3-line" tone="primary"
+                       :hint="$this->summary['cancelled'] ? $this->summary['cancelled'].' cancelled' : null" />
+            </div>
+        @else
+            <div class="col-6 col-xl-3">
+                <x-kpi label="Business day" :value="$this->day ? 'Open' : 'Closed'" icon="ri-store-3-line" :tone="$this->day ? 'success' : 'secondary'"
+                       :hint="$this->day ? $this->day->label() : null" />
+            </div>
+            <div class="col-6 col-xl-3">
+                @php($tablesInUse = \App\Models\Order::query()->open()->whereNotNull('dining_table_id')->count())
+                <x-kpi label="Tables in use" :value="$tablesInUse.' / '.\App\Models\DiningTable::query()->where('is_active', true)->count()" icon="ri-layout-grid-line" tone="primary" />
+            </div>
+        @endif
         <div class="col-6 col-xl-3">
-            <x-kpi label="Today's sales" :value="$this->shop->money(0)" icon="ri-money-dollar-circle-line" tone="success" hint="Live once the POS is ready" />
-        </div>
-        <div class="col-6 col-xl-3">
-            <x-kpi label="Orders today" value="0" icon="ri-file-list-3-line" tone="primary" />
-        </div>
-        <div class="col-6 col-xl-3">
-            <x-kpi label="Open tabs" value="0" icon="ri-restaurant-2-line" tone="warning" />
+            <x-kpi label="Open tabs" :value="$this->openTabs['count']" icon="ri-restaurant-2-line" tone="warning"
+                   :hint="$this->openTabs['count'] ? $this->shop->money($this->openTabs['amount']).' unpaid' : null" />
         </div>
         <div class="col-6 col-xl-3">
             <x-kpi label="Active staff" :value="$this->staffCount" icon="ri-team-line" tone="info" />
@@ -95,7 +149,7 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
                         <dd class="col-sm-8 mb-0">
                             @if ($this->shop->inventory_tracking_enabled)
                                 <span class="badge bg-success-subtle text-success">On</span>
-                                <span class="text-muted fs-13 ms-1">Recipes deduct stock when items go to the kitchen.</span>
+                                <span class="text-muted fs-13 ms-1">Stock is deducted from recipes once ingredients and recipes are set up (Inventory, coming next).</span>
                             @else
                                 <span class="badge bg-secondary-subtle text-secondary">Off</span>
                                 <span class="text-muted fs-13 ms-1">Products sell without stock tracking.</span>
@@ -131,7 +185,7 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
                 </div>
                 <div class="card-body">
                     @if ($this->setupSteps === [])
-                        <p class="text-muted mb-0">Your manager takes care of setup. The POS arrives in the next update.</p>
+                        <p class="text-muted mb-0">Your manager takes care of setup. Use the POS and Open Tabs to take orders.</p>
                     @else
                         <ul class="list-unstyled vstack gap-1 mb-0">
                             @foreach ($this->setupSteps as $step)

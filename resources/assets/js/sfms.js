@@ -129,6 +129,79 @@
         if (detail) toast(detail.type, detail.message);
     });
 
+    // ---------------------------------------------------------------- printing
+    //
+    // 80mm tickets print through a hidden iframe, so the POS page never reloads.
+    // Each device can switch KOT / receipt printing off (no printer at that till).
+    // Livewire: $this->dispatch('sfms-print', url: '...', kind: 'kot' | 'receipt')
+
+    const PRINT_KEYS = { kot: 'sfms-print-kot', receipt: 'sfms-print-receipt' };
+    const printQueue = [];
+    let printing = false;
+
+    function printEnabled(kind) {
+        if (!PRINT_KEYS[kind]) return true;
+        try { return localStorage.getItem(PRINT_KEYS[kind]) !== '0'; } catch (e) { return true; }
+    }
+
+    function setPrintEnabled(kind, on) {
+        try { localStorage.setItem(PRINT_KEYS[kind], on ? '1' : '0'); } catch (e) { /* private mode */ }
+    }
+
+    function nextPrintJob() {
+        if (printing || printQueue.length === 0) return;
+        printing = true;
+
+        const url = printQueue.shift();
+        const frame = document.createElement('iframe');
+        frame.setAttribute('aria-hidden', 'true');
+        frame.setAttribute('tabindex', '-1');
+        frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:80mm;height:200px;border:0;';
+
+        let done = false;
+        const finish = function () {
+            if (done) return;
+            done = true;
+            printing = false;
+            setTimeout(function () { frame.remove(); }, 1000);
+            nextPrintJob();
+        };
+
+        frame.addEventListener('load', function () {
+            try {
+                frame.contentWindow.addEventListener('afterprint', finish);
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            } catch (e) {
+                window.open(url, '_blank');
+            }
+            // print() blocks in most browsers; this covers the ones where it doesn't.
+            setTimeout(finish, 1500);
+        });
+
+        frame.src = url;
+        // Outside <body>, so a wire:navigate page swap can't remove it mid-print.
+        html.appendChild(frame);
+    }
+
+    function printUrl(url) {
+        if (!url) return;
+        printQueue.push(url);
+        nextPrintJob();
+    }
+
+    window.sfmsPrint = {
+        enabled: printEnabled,
+        set: setPrintEnabled,
+        url: printUrl,
+    };
+
+    window.addEventListener('sfms-print', function (event) {
+        const detail = Array.isArray(event.detail) ? event.detail[0] : event.detail;
+        if (!detail || !detail.url) return;
+        if (printEnabled(detail.kind)) printUrl(detail.url);
+    });
+
     // ---------------------------------------------------------------- delegated clicks
 
     document.addEventListener('click', function (event) {
@@ -186,6 +259,20 @@
         document.body.style.removeProperty('overflow');
         document.body.style.removeProperty('padding-right');
     }
+
+    // ---------------------------------------------------------------- Livewire + Bootstrap
+    //
+    // Bootstrap 5.3 puts an offcanvas backdrop next to the panel, which can be
+    // inside a Livewire component; the server HTML doesn't have it, so a re-render
+    // would remove it while the panel stays open. Leave Bootstrap's backdrops alone.
+    document.addEventListener('livewire:init', function () {
+        window.Livewire.hook('morph.removing', function (payload) {
+            const el = payload.el;
+            if (el && el.classList && (el.classList.contains('offcanvas-backdrop') || el.classList.contains('modal-backdrop'))) {
+                payload.skip();
+            }
+        });
+    });
 
     // ---------------------------------------------------------------- navigation lifecycle
 

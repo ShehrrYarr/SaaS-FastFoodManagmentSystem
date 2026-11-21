@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Shop\PrintController;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,29 @@ Route::prefix('{shop}')
             Route::livewire('dashboard', 'pages::shop.dashboard')->name('dashboard');
 
             // Each "can:" check also runs on every Livewire action (persistent middleware).
+            Route::middleware('can:pos.use')->group(function () {
+                Route::livewire('pos', 'pages::shop.pos')->name('pos');
+                Route::livewire('pos/{order}', 'pages::shop.pos')->whereNumber('order')->name('pos.order');
+                Route::livewire('tabs', 'pages::shop.tabs')->name('tabs');
+            });
+
+            Route::middleware('can:orders.view')->group(function () {
+                Route::livewire('orders', 'pages::shop.orders.index')->name('orders.index');
+                Route::livewire('orders/{order}', 'pages::shop.orders.show')->whereNumber('order')->name('orders.show');
+            });
+
+            Route::middleware('can:day.open_close')->group(function () {
+                Route::livewire('day', 'pages::shop.day')->name('day');
+                Route::livewire('day/{businessDay}', 'pages::shop.day-report')->whereNumber('businessDay')->name('day.report');
+            });
+
+            // 80mm print layouts (permission checked in the controller).
+            Route::prefix('print')->name('print.')->controller(PrintController::class)->group(function () {
+                Route::get('kot/{kot}', 'kot')->whereNumber('kot')->name('kot');
+                Route::get('receipt/{order}', 'receipt')->whereNumber('order')->name('receipt');
+                Route::get('day/{businessDay}', 'day')->whereNumber('businessDay')->name('day');
+            });
+
             Route::livewire('customers', 'pages::shop.customers')->middleware('can:customers.manage')->name('customers.index');
 
             Route::middleware('can:menu.manage')->group(function () {

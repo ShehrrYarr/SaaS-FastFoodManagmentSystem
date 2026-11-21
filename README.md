@@ -9,8 +9,8 @@ The full phase 1 plan and decisions are in [docs/SPEC.md](docs/SPEC.md).
 | M0 Foundation (Laravel 13, Livewire 4, Herozi layouts, `wire:navigate`) | Done |
 | M1 Tenancy + Super Admin (shops, guards, middleware, roles, shop login) | Done |
 | M2 Shop setup (menu, tables, waiters, staff, roles, accounts, customers, settings) | Done |
-| M3 POS, tabs, KOT, checkout, day close | Next |
-| M4 Inventory (ingredients, recipes, purchases) | Planned |
+| M3 POS, tabs, KOT, checkout, day close | Done |
+| M4 Inventory (ingredients, recipes, purchases) | Next |
 | M5 Money & reports | Planned |
 | M6 Live updates (Reverb), mobile pass, docs | Planned |
 
@@ -120,6 +120,23 @@ Herozi's original demo pages are available locally at http://127.0.0.1:8000/_her
 - **Roles are per shop.** Each shop gets Owner (locked, all permissions), Manager and Cashier, and checks use `$user->can('pos.use')`. The permission list is in `app/Support/Permissions.php`.
 - **Numbering:** `ShopSequence::next($tenantId, 'order')` returns gap-free numbers under a row lock, and `ShopSequence::format('BLG', 123)` gives `BLG-000123`.
 
+## Taking orders (M3)
+
+1. **Open the day** (`/{shop}/day`): count the cash drawer. Any difference from the Cash Drawer's ledger balance is posted as cash over/short. The POS refuses orders while no day is open.
+2. **POS** (`/{shop}/pos`): choose Dine-in, Takeaway or Delivery, then tap items. Items with sizes or add-ons open a sheet. New lines stay in the POS (and your session, so they survive moving between pages) until you press **Send**, which saves them on the order and prints a kitchen ticket (KOT). The order gets its number (`BLG-000123`) and daily token on its first send.
+   - Dine-in needs a table or a waiter. Delivery needs a phone and address; a known phone fills in the customer.
+   - **Send & pay** sends the new lines and opens payment in one tap (takeaway).
+   - Voids need the `orders.void` permission and a reason, and print a VOID ticket. Discounts need `orders.discount`.
+3. **Open Tabs** (`/{shop}/tabs`): every table (free or busy), unpaid takeaway orders and the delivery queue (send out with a rider, then mark paid). Refreshes every 15 seconds until live updates arrive in M6.
+4. **Payment**: one or more payment lines (split across the Cash Drawer, banks and wallets). They must add up to the bill exactly; extra cash goes in "Cash received" and the change is shown. Each payment posts to its account's ledger.
+5. **Close the day**: count the drawer again. Expected cash is the Cash Drawer's ledger balance; the difference is posted and the day's report (sales by account and type, items, voids, discounts, cash) is stored and printed as a Z report. Tabs still open carry over and count on the day they're paid.
+
+**Orders** (`/{shop}/orders`) lists every order by date with its detail page: items, voids, payments and kitchen tickets, with reprint buttons.
+
+### Printing
+
+Kitchen tickets, receipts and day reports are 80mm pages under `/{shop}/print/...`. The POS prints them through a hidden iframe, so the browser's print dialog appears. The printer button in the POS order panel turns kitchen tickets or receipts off on that device (saved in the browser), for phones and tills without a printer. For silent printing today, start Chrome with `--kiosk-printing` and set the thermal printer as the default; QZ Tray comes later.
+
 ## Front-end notes
 
 - Pages are Livewire 4 single-file components in `resources/views/pages/...`, routed with `Route::livewire()`.
@@ -132,3 +149,5 @@ Herozi's original demo pages are available locally at http://127.0.0.1:8000/_her
 - **MySQL storage engine.** WAMP's MySQL defaults to MyISAM, which has no transactions, row locks or foreign keys. `config/database.php` forces `InnoDB` (override with `DB_ENGINE`); keep it that way, because stock and order numbering depend on row locks.
 - **Livewire state between requests.** Livewire keeps its persistent-middleware state in memory and skips re-running the checks when the previous request had the same route. `AppServiceProvider` flushes that state after every request, so the shop and permission checks can never be skipped in long-running workers (Octane) or tests. Keep that line.
 - **PHP version.** Laravel 13 needs PHP 8.3, and `php -v` on this machine may still report 8.2.
+- **Bootstrap backdrops inside Livewire components.** Bootstrap 5.3 puts an offcanvas backdrop next to the panel, so a Livewire re-render would delete it. `sfms.js` tells Livewire's morph to skip `.offcanvas-backdrop` / `.modal-backdrop`; keep that hook.
+- **Locking reads in order code.** Inside a transaction MySQL serves plain reads from a snapshot, which can miss lines another till just added. `App\Services\Orders` reloads order lines and checks table occupancy with `lockForUpdate()`; keep that pattern for stock in M4.

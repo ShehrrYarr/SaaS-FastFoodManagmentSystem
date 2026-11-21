@@ -24,3 +24,4 @@
 <script src="{{ asset('assets/libs/simplebar/simplebar.min.js') }}"></script>
 <script src="{{ asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
 <script src="{{ asset('assets/js/sfms.js') }}"></script>
+<script src="{{ asset('assets/js/sfms-pos.js') }}"></script>

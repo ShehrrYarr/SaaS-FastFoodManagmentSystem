@@ -1,6 +1,6 @@
 # SFMS: Fast-Food Management & POS (Phase 1 spec)
 
-Status: **approved** · 2026-11-21 · M0, M1 and M2 done
+Status: **approved** · 2026-11-22 · M0, M1, M2 and M3 done
 Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 
 ---
@@ -100,13 +100,13 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 - `customers`: name, phone (unique per shop), address, notes, orders_count, total_spent, last_order_at
 
 **Orders**
-- `business_days`: business_date, status, opened_by/at, opening_cash_counted, closed_by/at, expected_cash, counted_cash, cash_difference, summary (json snapshot)
-- `orders`: order_number, sequence, token_number, business_day_id, type, status (`open` `completed` `cancelled`), payment_status (`unpaid` `partial` `paid`), dining_table_id, waiter_id, rider_id, customer_id, customer name/phone/address snapshot, guests, subtotal, item_discount_total, discount_type/value/amount, service_charge, delivery_charge, grand_total, paid_total, change_total, notes, opened_by, closed_by, opened_at, closed_at, cancel_reason
-- `order_items`: order_id, product_id, product_variant_id, name snapshot, unit_price, modifiers_total, quantity, voided_quantity, discount_type/value/amount, line_total, note, status (`pending` | `sent`), kot_id, combo_snapshot (json)
-- `order_item_modifiers`: order_item_id, modifier_option_id, name, price (snapshots)
-- `order_item_voids`: order_item_id, quantity, reason, user_id, kot_id
-- `kots`: order_id, number, type (`new` | `void`), printed_count, created_by
-- `payments`: order_id, account_id, amount, tendered, change_given, reference (bank/wallet transaction id), received_by, business_day_id
+- `business_days`: business_date, status, opened_by/at, opening_cash_expected, opening_cash_counted, opening_note, closed_by/at, expected_cash, counted_cash, cash_difference, closing_note, summary (json snapshot). One open day per shop (checked under a lock on the shop row).
+- `orders`: order_number, sequence, token_number, business_day_id (opened), closed_business_day_id (paid or cancelled; the order counts on that day), type, status (`open` `completed` `cancelled`), payment_status (`unpaid` `partial` `paid`), delivery_status (`pending` `out` `delivered`), dining_table_id, waiter_id, rider_id, customer_id, customer name/phone/address snapshot, guests, subtotal, item_discount_total, discount_type/value/amount, service_charge_type/value (copied from the shop when the order opens), service_charge, delivery_charge, grand_total, paid_total, change_total, notes, opened_by, closed_by, opened_at, dispatched_at, closed_at, cancel_reason
+- `order_items`: order_id, kot_id, product_id, product_variant_id, name + variant_name snapshot, unit_price, modifiers_total, quantity, voided_quantity, discount_type/value/amount, line_total, note, combo_snapshot (json). *Built without a `status` column:* unsent lines live in the POS (and the user's session) and are saved only when sent, so every saved line is on a KOT.
+- `order_item_modifiers`: order_item_id, modifier_option_id, group_name, name, price (snapshots)
+- `order_item_voids`: order_id, order_item_id, quantity, amount, reason, user_id, kot_id, business_day_id
+- `kots`: order_id, business_day_id, number (per business day), type (`new` | `void`), printed_count, created_by
+- `payments`: order_id, account_id, amount, tendered, change_given, reference (bank/wallet transaction id), received_by, business_day_id. Checkout takes the whole bill at once (payments must equal the grand total); `partial` is reserved for later.
 
 **Money**
 - `accounts`: name, type (`cash` `bank` `wallet`), account_title, account_number, is_default_cash (one per shop, cannot be deleted), opening_balance, current_balance, is_active
@@ -121,7 +121,7 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 **POS**
 1. Choose order type. **Dine-in** needs a table, a waiter, or both. **Takeaway**: optional name. **Delivery**: typing a phone number auto-fills the customer and address; the rider is assigned on dispatch.
 2. Add items from a touch grid (instant search + category chips). Products with more than one variant, or with modifiers, open a bottom sheet to choose size and add-ons.
-3. **Send to kitchen** commits pending lines in one `DB::transaction`: lock the order → create a KOT → mark lines `sent` → (if inventory is on) explode variant + modifier + combo recipes into ingredient totals, lock those ingredient rows **in id order** with `lockForUpdate()` (avoids deadlocks), apply the shop's negative-stock rule, decrement with exact MySQL decimals, write `stock_movements` → print the KOT.
+3. **Send to kitchen** commits the new lines in one `DB::transaction`: lock the order (reloading its lines with locking reads) → create a KOT → save the lines, priced again on the server → (if inventory is on) explode variant + modifier + combo recipes into ingredient totals, lock those ingredient rows **in id order** with `lockForUpdate()` (avoids deadlocks), apply the shop's negative-stock rule, decrement with exact MySQL decimals, write `stock_movements` → print the KOT.
 4. **Takeaway "Charge"** = send to kitchen + open checkout in one tap.
 
 **Open Tabs board**: table grid (free/occupied, amount, minutes open), waiter filter, delivery list (pending / out for delivery). Tap a tab to add items, change quantities/notes, void, or check out. Updates live.

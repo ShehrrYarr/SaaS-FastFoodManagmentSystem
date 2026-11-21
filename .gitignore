@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------
+# Dependencies (restored by `composer install` and `npm install`)
+# ---------------------------------------------------------------
+/vendor
+/node_modules
+
+# ---------------------------------------------------------------
+# Build output (rebuilt from resources/assets by `npm run production`)
+# ---------------------------------------------------------------
+/public/assets
+/public/fonts
+/public/mix-manifest.json
+/public/build
+/public/hot
+/public/storage
+
+# ---------------------------------------------------------------
+# Environment and secrets: never commit these
+# ---------------------------------------------------------------
+.env
+.env.backup
+.env.production
+.env.*.local
+/auth.json
+/storage/*.key
+*.pem
+
+# ---------------------------------------------------------------
+# Laravel runtime files
+# ---------------------------------------------------------------
+/storage/pail
+/.phpunit.cache
+.phpunit.result.cache
+*.log
+
+# ---------------------------------------------------------------
+# Local tooling and editors
+# ---------------------------------------------------------------
+Homestead.json
+Homestead.yaml
+.phpactor.json
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.claude/settings.local.json
+
+# ---------------------------------------------------------------
+# Operating system files
+# ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini

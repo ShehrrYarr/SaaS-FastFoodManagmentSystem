@@ -1,0 +1,411 @@
+//
+// SFMS additions on top of Herozi.
+// Uses Herozi's own variables so light/dark and theme colours stay in sync.
+//
+
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "variables";
+@import "variables-dark";
+@import "custom-variables";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+
+[x-cloak] {
+  display: none !important;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+// ------------------------------------------------------------------ brand
+
+.sfms-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  min-width: 0;
+
+  .sfms-brand-mark {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.6rem;
+    display: inline-grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: var(--#{$prefix}primary);
+  }
+
+  .sfms-brand-text {
+    font-family: var(--#{$prefix}font-heading, inherit);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--#{$prefix}emphasis-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// Small-icon sidebar: only the mark is shown.
+[data-main-layout="small-icon"] .app-sidebar:not(:hover) .sfms-brand-text {
+  display: none;
+}
+
+// ------------------------------------------------------------------ sidebar
+
+.app-sidebar .side-menu__item.is-soon {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-sidebar .side-menu__badge {
+  margin-inline-start: auto;
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 1rem;
+  background: var(--#{$prefix}secondary-bg);
+  color: var(--#{$prefix}secondary-color);
+}
+
+[data-main-layout="small-icon"] .app-sidebar:not(:hover) .side-menu__badge {
+  display: none;
+}
+
+// ------------------------------------------------------------------ page header
+
+.sfms-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+
+  .sfms-page-title {
+    margin-bottom: 0.15rem;
+    font-weight: 600;
+  }
+
+  .sfms-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  @include media-breakpoint-down(sm) {
+    .sfms-page-actions,
+    .sfms-page-actions > .btn {
+      width: 100%;
+    }
+  }
+}
+
+// ------------------------------------------------------------------ KPI cards
+
+.sfms-kpi {
+  .sfms-kpi-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.75rem;
+    display: grid;
+    place-items: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  .sfms-kpi-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  // Two cards per row on phones: stack the icon above the figures.
+  @include media-breakpoint-down(sm) {
+    .card-body {
+      padding: 1rem !important;
+    }
+
+    .card-body > .hstack {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 0.6rem !important;
+    }
+
+    .sfms-kpi-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      font-size: 1.05rem;
+      border-radius: 0.6rem;
+    }
+
+    .sfms-kpi-value {
+      font-size: 1.25rem;
+      overflow-wrap: anywhere;
+    }
+  }
+}
+
+// ------------------------------------------------------------------ touch-friendly controls
+
+.btn-touch {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.form-control-touch,
+.form-select-touch {
+  min-height: 2.75rem;
+}
+
+// ------------------------------------------------------------------ tables -> cards on phones
+
+@include media-breakpoint-down(md) {
+  .table-stack {
+    thead {
+      display: none;
+    }
+
+    tbody,
+    tr,
+    td {
+      display: block;
+      width: 100%;
+    }
+
+    tr {
+      border: 1px solid var(--#{$prefix}border-color);
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.75rem;
+      background: var(--#{$prefix}body-bg);
+    }
+
+    td {
+      border: 0 !important;
+      padding: 0.35rem 0 !important;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      text-align: end;
+
+      &::before {
+        content: attr(data-label);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--#{$prefix}secondary-color);
+        text-align: start;
+        flex-shrink: 0;
+      }
+
+      &[data-label=""]::before,
+      &:not([data-label])::before {
+        content: none;
+      }
+
+      &.td-primary {
+        justify-content: flex-start;
+        text-align: start;
+      }
+
+      &.td-actions {
+        justify-content: flex-end;
+        padding-top: 0.6rem !important;
+      }
+    }
+  }
+}
+
+// ------------------------------------------------------------------ filter tabs
+
+.sfms-filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  .btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
+
+// ------------------------------------------------------------------ wizard
+
+.sfms-steps {
+  display: flex;
+  gap: 0.5rem;
+  counter-reset: step;
+  margin-bottom: 1.5rem;
+
+  .sfms-step {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.75rem;
+    background: var(--#{$prefix}tertiary-bg);
+    color: var(--#{$prefix}secondary-color);
+    font-weight: 500;
+    font-size: 0.875rem;
+    border: 0;
+    text-align: start;
+
+    .sfms-step-num {
+      width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      background: var(--#{$prefix}body-bg);
+    }
+
+    .sfms-step-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &.is-active {
+      background: var(--#{$prefix}primary-bg-subtle);
+      color: var(--#{$prefix}primary-text-emphasis);
+
+      .sfms-step-num {
+        background: var(--#{$prefix}primary);
+        color: #fff;
+      }
+    }
+
+    &.is-done .sfms-step-num {
+      background: var(--#{$prefix}success);
+      color: #fff;
+    }
+  }
+
+  @include media-breakpoint-down(sm) {
+    .sfms-step-label {
+      display: none;
+    }
+
+    .sfms-step.is-active .sfms-step-label {
+      display: inline;
+    }
+
+    .sfms-step:not(.is-active) {
+      flex: 0 0 auto;
+    }
+  }
+}
+
+// ------------------------------------------------------------------ sticky mobile action bar
+
+.sfms-sticky-actions {
+  @include media-breakpoint-down(md) {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 0 calc(-1 * var(--#{$prefix}card-spacer-x, 1rem)) calc(-1 * var(--#{$prefix}card-spacer-y, 1rem));
+    padding: 0.75rem var(--#{$prefix}card-spacer-x, 1rem);
+    background: var(--#{$prefix}body-bg);
+    border-top: 1px solid var(--#{$prefix}border-color);
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}
+
+// ------------------------------------------------------------------ auth pages
+
+.sfms-auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 1rem;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(var(--#{$prefix}primary-rgb), 0.12), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, rgba(var(--#{$prefix}warning-rgb), 0.12), transparent 60%),
+    var(--#{$prefix}tertiary-bg);
+
+  .sfms-auth-card {
+    width: 100%;
+    max-width: 26rem;
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.08);
+  }
+
+  .sfms-auth-logo {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--#{$prefix}primary);
+    font-size: 1.1rem;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+}
+
+// ------------------------------------------------------------------ misc
+
+.sfms-banner {
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.sfms-mono {
+  font-family: SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+// Initials avatars: centre the letters.
+.avatar.avatar-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+// Stacked table cells on phones: keep multi-line values together on the right.
+@include media-breakpoint-down(md) {
+  .table-stack td > .cell-stack {
+    text-align: end;
+    min-width: 0;
+  }
+}

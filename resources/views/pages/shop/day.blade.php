@@ -247,7 +247,12 @@ new #[Layout('layouts::shop')] #[Title('Business Day')] class extends Component
                     <div class="text-center bg-light rounded-3 p-3">
                         <div class="text-muted fs-13">Cash expected in the drawer</div>
                         <div class="fs-3 fw-bold">{{ $this->shop->money($this->summary['cash']['expected'] ?? 0) }}</div>
-                        <div class="fs-12 text-muted">Opening {{ $this->shop->money($this->summary['cash']['opening']) }} + cash sales {{ $this->shop->money($this->summary['cash']['sales']) }}</div>
+                        <div class="fs-12 text-muted">
+                            Opening {{ $this->shop->money($this->summary['cash']['opening']) }} + cash sales {{ $this->shop->money($this->summary['cash']['sales']) }}
+                            @if ($this->summary['cash']['movements'] !== [])
+                                ± {{ collect($this->summary['cash']['movements'])->pluck('label')->map(fn ($l) => mb_strtolower($l))->implode(', ') }}
+                            @endif
+                        </div>
                     </div>
 
                     <x-input model="closingCount" label="Cash counted" inputmode="decimal" :prepend="$this->shop->currency_symbol" required autofocus />

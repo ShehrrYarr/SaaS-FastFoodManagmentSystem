@@ -11,8 +11,8 @@ The full phase 1 plan and decisions are in [docs/SPEC.md](docs/SPEC.md).
 | M2 Shop setup (menu, tables, waiters, staff, roles, accounts, customers, settings) | Done |
 | M3 POS, tabs, KOT, checkout, day close | Done |
 | M4 Inventory (ingredients, recipes, purchases) | Done |
-| M5 Money & reports | Next |
-| M6 Live updates (Reverb), mobile pass, docs | Planned |
+| M5 Money & reports (expenses, transfers, ledgers, reports, dashboard) | Done |
+| M6 Live updates (Reverb), mobile pass, docs | Next |
 
 ---
 
@@ -150,6 +150,16 @@ Only for shops with **Settings → Track ingredient inventory** on; otherwise th
 
 Unit conversion: `kg = 1000 g`, `L = 1000 ml`, `dozen = 12 pcs`, `pair = 2 pcs`. Quantities are stored with 4 decimals and calculated exactly (bcmath).
 
+## Money & reports (M5)
+
+- **Accounts** (`/{shop}/accounts`): balances, recent activity, and **Transfer** between accounts (`BLG-TRF-000001`). Each account has a **ledger** (`/{shop}/accounts/{id}`): every entry with its running balance, filters by type and dates, money in/out totals, and a link to the order, expense, purchase, transfer or day report behind it. **Money in / Money out** records cash the owner adds or takes, bank charges and corrections (a reason is required).
+- **Expenses** (`/{shop}/expenses`, `expenses.manage`): category, amount, the account it was paid from, date, paid to and a note (`BLG-EXP-000001`). A month view with totals by category and what came out of the drawer. Expenses are never deleted: **Void** puts the money back with a reversing ledger entry and keeps the record. Categories can be added, renamed or hidden.
+- **No overdrafts:** an expense, purchase, transfer or money out can't take more than the account holds ("Cash Drawer only has Rs 1,650.").
+- **Day close matches the ledger:** the day report lists opening count + cash sales ± every other drawer entry (expenses, purchases, transfers, money in/out) = expected cash, so the count can be checked line by line. The Z report prints the same, plus the day's expenses by category.
+- **Reports** (`/{shop}/reports`, `reports.view`): Today, Yesterday, This week, Last 7 / 30 days, This month, Last month or a custom range (up to a year). Sales by day (or month), payments by account, order types, discounts/voids, best sellers, categories, busy hours, cashiers, waiters, expenses by category and a profit estimate (sales − ingredient cost − expenses). **Orders CSV** downloads the orders behind the report (opens in Excel).
+- **Dashboard**: sales for the last 7 days and this month's profit estimate (`reports.view`), and account balances (`accounts.manage`).
+- Charts use ApexCharts (`resources/assets/js/sfms-charts.js`), loaded only on pages that draw one, in the theme's colours for light and dark mode. Each chart has its figures in a table under it.
+
 ## Front-end notes
 
 - Pages are Livewire 4 single-file components in `resources/views/pages/...`, routed with `Route::livewire()`.
@@ -164,5 +174,6 @@ Unit conversion: `kg = 1000 g`, `L = 1000 ml`, `dozen = 12 pcs`, `pair = 2 pcs`.
 - **PHP version.** Laravel 13 needs PHP 8.3, and `php -v` on this machine may still report 8.2.
 - **Bootstrap backdrops inside Livewire components.** Bootstrap 5.3 puts an offcanvas backdrop next to the panel, so a Livewire re-render would delete it. `sfms.js` tells Livewire's morph to skip `.offcanvas-backdrop` / `.modal-backdrop`; keep that hook.
 - **Locking reads in order code.** Inside a transaction MySQL serves plain reads from a snapshot, which can miss lines another till just added. `App\Services\Orders` reloads order lines and checks table occupancy with `lockForUpdate()`, and `App\Services\Stock` locks ingredient rows **in id order** so concurrent tills queue instead of deadlocking. Order transactions retry up to 3 times if MySQL still picks one as a deadlock victim. `ShopSequence::next()` locks an existing counter directly (no `INSERT IGNORE` first), because two tills upgrading shared locks deadlock.
+- **Day lock for money postings.** `BusinessDays::current(lock: true)` (and `requireOpen()`) take a *shared* lock on the open day row inside every transaction that moves money; closing the day takes it *exclusively* and locks the Cash Drawer row. Sales on several tills don't block each other, but a close waits for them and they wait for the close, so the close's expected cash and the day's ledger always agree. The day row is always locked first.
 - **Concurrency test.** `tests/Feature/StockConcurrencyTest.php` runs 4 PHP processes selling at once against `sfms_testing`. It can't use transactions, so it rebuilds that database before and after (about 30 s). It is skipped if the config is cached.
 - **`@php(...)` with `@php … @endphp` in one template.** Blade matches a block from the first `@php` to the next `@endphp`, so an inline `@php($x = …)` *before* a block form swallows everything in between. Use block form in templates that have both.

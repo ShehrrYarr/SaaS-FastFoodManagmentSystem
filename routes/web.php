@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Shop\PrintController;
+use App\Http\Controllers\Shop\ReportController;
 use App\Models\Shop;
 use Illuminate\Support\Facades\Route;
 
@@ -106,7 +107,17 @@ Route::prefix('{shop}')
                 Route::livewire('add-ons', 'pages::shop.menu.modifiers')->name('modifiers.index');
             });
 
-            Route::livewire('accounts', 'pages::shop.accounts')->middleware('can:accounts.manage')->name('accounts.index');
+            Route::middleware('can:accounts.manage')->group(function () {
+                Route::livewire('accounts', 'pages::shop.accounts')->name('accounts.index');
+                Route::livewire('accounts/{account}', 'pages::shop.account-ledger')->whereNumber('account')->name('accounts.show');
+            });
+
+            Route::livewire('expenses', 'pages::shop.expenses')->middleware('can:expenses.manage')->name('expenses.index');
+
+            Route::middleware('can:reports.view')->group(function () {
+                Route::livewire('reports', 'pages::shop.reports')->name('reports');
+                Route::get('reports/orders.csv', [ReportController::class, 'export'])->name('reports.export');
+            });
 
             Route::middleware('can:floor.manage')->group(function () {
                 Route::livewire('tables', 'pages::shop.tables')->name('tables.index');

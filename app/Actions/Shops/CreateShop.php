@@ -3,6 +3,7 @@
 namespace App\Actions\Shops;
 
 use App\Models\Account;
+use App\Models\ExpenseCategory;
 use App\Models\Role;
 use App\Models\Shop;
 use App\Models\User;
@@ -12,7 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Onboards a shop in one transaction: the shop, its default roles
- * (Owner / Manager / Cashier) and the owner's login.
+ * (Owner / Manager / Cashier), the Cash Drawer, the default expense
+ * categories and the owner's login.
  */
 class CreateShop
 {
@@ -35,6 +37,8 @@ class CreateShop
                     'type' => 'cash',
                     'is_default_cash' => true,
                 ]);
+
+                ExpenseCategory::createDefaults();
 
                 User::create([
                     'tenant_id' => $shop->id,

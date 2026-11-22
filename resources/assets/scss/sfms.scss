@@ -922,3 +922,69 @@ body {
     background: rgba(var(--#{$prefix}danger-rgb), 0.06);
   }
 }
+
+// ------------------------------------------------------------------ money & reports
+
+// Ranked bar meter (expenses by category, sales by category): one hue, the
+// track is a lighter step of it.
+.sfms-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(var(--#{$prefix}primary-rgb), 0.14);
+  overflow: hidden;
+
+  > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--#{$prefix}primary);
+  }
+}
+
+// Chart area keeps its height while the library loads, so the page doesn't jump.
+.sfms-chart {
+  min-height: 260px;
+
+  &.is-short {
+    min-height: 200px;
+  }
+
+  .apexcharts-tooltip {
+    box-shadow: var(--#{$prefix}box-shadow-sm);
+  }
+}
+
+// Range presets: one scrollable row of chips on phones.
+.sfms-range {
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  .btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+// Figure lists (label ......... value).
+.sfms-figures {
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+  }
+
+  .is-total {
+    border-top: 1px solid var(--#{$prefix}border-color);
+    margin-top: 0.25rem;
+    padding-top: 0.5rem;
+    font-weight: 600;
+  }
+}

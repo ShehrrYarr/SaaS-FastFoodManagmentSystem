@@ -49,6 +49,8 @@ class Purchases
         }
 
         return DB::transaction(function () use ($shop, $details, $lines, $date) {
+            // Shared lock on the open day first, the same order as sales (see BusinessDays::current).
+            $day = $this->days->current(lock: true);
             $ingredients = $this->stock->lock(array_column($lines, 'ingredient_id'));
 
             $prepared = [];
@@ -83,7 +85,6 @@ class Purchases
                 : null;
 
             $sequence = ShopSequence::next($shop->id, 'purchase');
-            $day = $this->days->current();
 
             $purchase = Purchase::create([
                 'voucher_number' => ShopSequence::format($shop->order_prefix, $sequence, 'PUR'),
@@ -114,7 +115,7 @@ class Purchases
             }
 
             if ($account && Money::isPositive($purchase->total)) {
-                $this->ledger->post($account, 'purchase', Money::sub(0, $purchase->total), $purchase, 'Purchase '.$purchase->voucher_number, businessDayId: $day?->id);
+                $this->ledger->post($account, 'purchase', Money::sub(0, $purchase->total), $purchase, 'Purchase '.$purchase->voucher_number, businessDayId: $day?->id, mustCover: true);
             }
 
             return $purchase->load('items.ingredient', 'account');

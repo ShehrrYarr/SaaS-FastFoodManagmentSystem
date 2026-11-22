@@ -1,6 +1,6 @@
 # SFMS: Fast-Food Management & POS (Phase 1 spec)
 
-Status: **approved** · 2026-11-22 · M0 to M4 done
+Status: **approved** · 2026-11-22 · M0 to M5 done
 Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 
 ---
@@ -112,9 +112,11 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 
 **Money**
 - `accounts`: name, type (`cash` `bank` `wallet`), account_title, account_number, is_default_cash (one per shop, cannot be deleted), opening_balance, current_balance, is_active
-- `account_transactions` (ledger): account_id, type (`sale` `transfer_in` `transfer_out` `expense` `purchase` `cash_in` `cash_out` `opening` `over_short`), amount (signed), balance_after, source (morph), business_day_id, user_id, note
-- `transfers`: from_account_id, to_account_id, amount, note
-- `expense_categories`, `expenses`: category_id, account_id, amount, note, spent_on, business_day_id
+- `account_transactions` (ledger): account_id, type (`sale` `transfer_in` `transfer_out` `expense` `purchase` `cash_in` `cash_out` `opening` `over_short`), amount (signed), balance_after, source (morph), business_day_id, user_id, note. Append-only: mistakes are corrected with a reversing entry, never edited.
+- `transfers`: voucher_number (`BLG-TRF-000001`), sequence, from_account_id, to_account_id, amount, note, business_day_id, created_by
+- `expense_categories`: name (unique per shop), is_active, sort_order. New shops get a default list (Rent, Salaries & wages, Electricity, Gas…).
+- `expenses`: voucher_number (`BLG-EXP-000001`), sequence, expense_category_id, account_id, amount, spent_on, payee, note, business_day_id, created_by, voided_at/voided_by/void_reason. Never deleted: a void posts the money back and keeps the record. Only category, date, payee and note can be edited.
+- An account can never pay out more than it holds (expenses, purchases, transfers, money out).
 
 ---
 
@@ -133,6 +135,10 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 **Checkout** (modal on desktop, full-screen sheet on mobile): subtotal − item discounts − order discount + service charge (dine-in) + delivery charge = grand total. One or more payment lines (account + amount, optional reference); cash lines show tendered and change. When fully paid: order `completed`, table freed, account ledger posted, customer stats updated, 80mm receipt with shop name, `BLG-000123`, and token.
 
 **Business day**: the POS requires an open day. Opening confirms the counted drawer cash (a difference posts as over/short). Closing shows expected cash (drawer ledger) vs counted, posts over/short, and locks a day report (sales by account, order type, item, plus voids and discounts). Open tabs at close are allowed with a warning; they carry over and count on the day they're paid.
+
+**Cash reconciliation (M5)**: every money posting made while a day is open carries that day's id, and takes a shared lock on the open day row (closing takes it exclusively and locks the Cash Drawer row), so nothing lands half inside a closing day. The day report shows opening count + cash sales ± each other drawer entry type (expenses, purchases, transfers, money in/out) = expected cash, read from the drawer's ledger; any part of the balance the ledger cannot explain is shown separately (always zero by construction). Money moved while no day is open belongs to no day and is absorbed by the next opening count.
+
+**Reports (M5)**: a date range of business dates (presets or custom, at most a year). Sales count on the business day the order was paid, so a month equals the sum of its Z reports; expenses on `spent_on`, purchases on `purchased_on`. Figures: sales, orders, average, payments by account, order types, adjustments, best sellers, categories, busy hours, cashiers, waiters, expenses by category, and a profit estimate (sales − ingredient cost from stock movements − expenses; without inventory, sales − expenses). Orders download as CSV.
 
 ---
 

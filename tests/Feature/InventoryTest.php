@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\AccountLedger;
 use App\Services\BusinessDays;
 use App\Services\Orders;
 use App\Services\Purchases;
@@ -172,6 +173,7 @@ class InventoryTest extends TestCase
         $chicken = $this->ingredient('Chicken', 'kg', 10, 900);   // 10 kg @ 900
         $buns = $this->ingredient('Buns', 'pcs', 0);
         $bank = Account::create(['name' => 'Meezan', 'type' => 'bank']);
+        app(AccountLedger::class)->post($bank, 'opening', 10000);
 
         $purchase = app(Purchases::class)->record(['supplier_name' => 'Poultry Co', 'account_id' => $bank->id], [
             ['ingredient_id' => $chicken->id, 'quantity' => 5000, 'unit' => 'g', 'line_total' => 5250],  // 5 kg @ 1050
@@ -184,11 +186,11 @@ class InventoryTest extends TestCase
         $this->assertSame('950.0000', $chicken->fresh()->avg_cost);         // (10×900 + 5250) / 15
         $this->assertSame('24.0000', $buns->fresh()->current_stock);
         $this->assertSame('25.0000', $buns->fresh()->avg_cost);
-        $this->assertSame('-5850.00', $bank->fresh()->current_balance);
+        $this->assertSame('4150.00', $bank->fresh()->current_balance);
 
         // Unpaid: stock in, no money out.
         app(Purchases::class)->record(['account_id' => null], [['ingredient_id' => $buns->id, 'quantity' => 12, 'unit' => 'pcs', 'line_total' => 300]]);
-        $this->assertSame('-5850.00', $bank->fresh()->current_balance);
+        $this->assertSame('4150.00', $bank->fresh()->current_balance);
         $this->assertSame('36.0000', $buns->fresh()->current_stock);
     }
 

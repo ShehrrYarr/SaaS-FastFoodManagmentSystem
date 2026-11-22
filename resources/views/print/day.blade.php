@@ -48,12 +48,29 @@
         <div class="row"><span>Open tabs ({{ $summary['open_tabs']['count'] }})</span><span>{{ $money($summary['open_tabs']['amount']) }}</span></div>
     @endif
 
+    @if (($summary['expenses']['count'] ?? 0) > 0 || ($summary['purchases']['count'] ?? 0) > 0)
+        <hr class="rule">
+        <p class="bold">Expenses</p>
+        @foreach ($summary['expenses']['by_category'] as $row)
+            <div class="row"><span>{{ $row['category'] }} ({{ $row['count'] }})</span><span>{{ $money($row['amount']) }}</span></div>
+        @endforeach
+        @if ($summary['expenses']['count'] > 0)
+            <div class="row bold"><span>Total expenses</span><span>{{ $money($summary['expenses']['amount']) }}</span></div>
+        @endif
+        @if ($summary['purchases']['count'] > 0)
+            <div class="row"><span>Stock purchases ({{ $summary['purchases']['count'] }})</span><span>{{ $money($summary['purchases']['amount']) }}</span></div>
+        @endif
+    @endif
+
     <hr class="rule-solid">
     <p class="bold">Cash drawer</p>
     <div class="row"><span>Opening count</span><span>{{ $money($summary['cash']['opening']) }}</span></div>
     <div class="row"><span>+ Cash sales</span><span>{{ $money($summary['cash']['sales']) }}</span></div>
+    @foreach ($summary['cash']['movements'] ?? [] as $row)
+        <div class="row"><span>{{ (float) $row['amount'] < 0 ? '-' : '+' }} {{ $row['label'] }} ({{ $row['entries'] }})</span><span>{{ $money(abs((float) $row['amount'])) }}</span></div>
+    @endforeach
     @if ((float) $summary['cash']['other'] != 0)
-        <div class="row"><span>+/- Other</span><span>{{ $money($summary['cash']['other']) }}</span></div>
+        <div class="row"><span>{{ isset($summary['cash']['movements']) ? 'Not in ledger' : '+/- Other' }}</span><span>{{ $money($summary['cash']['other']) }}</span></div>
     @endif
     <div class="row bold"><span>Expected</span><span>{{ $money($summary['cash']['expected']) }}</span></div>
     @if ($summary['cash']['counted'] !== null)

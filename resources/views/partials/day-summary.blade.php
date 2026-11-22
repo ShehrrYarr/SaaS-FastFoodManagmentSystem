@@ -43,8 +43,18 @@
             <div class="card-body">
                 <div class="hstack justify-content-between py-1"><span class="text-muted">Opening count</span><span>{{ $money($summary['cash']['opening']) }}</span></div>
                 <div class="hstack justify-content-between py-1"><span class="text-muted">+ Cash sales</span><span>{{ $money($summary['cash']['sales']) }}</span></div>
+                @foreach ($summary['cash']['movements'] ?? [] as $row)
+                    <div class="hstack justify-content-between py-1">
+                        <span class="text-muted">{{ (float) $row['amount'] < 0 ? '−' : '+' }} {{ $row['label'] }} <span class="fs-12">&times;{{ $row['entries'] }}</span></span>
+                        <span>{{ $money(abs((float) $row['amount'])) }}</span>
+                    </div>
+                @endforeach
                 @if ((float) $summary['cash']['other'] != 0)
-                    <div class="hstack justify-content-between py-1"><span class="text-muted">± Other cash movements</span><span>{{ $money($summary['cash']['other']) }}</span></div>
+                    {{-- Days closed before M5 kept every non-sale movement here; now it is only what the ledger cannot explain. --}}
+                    <div class="hstack justify-content-between py-1 {{ isset($summary['cash']['movements']) ? 'text-danger' : '' }}">
+                        <span class="{{ isset($summary['cash']['movements']) ? '' : 'text-muted' }}">{{ isset($summary['cash']['movements']) ? 'Not in the ledger' : '± Other cash movements' }}</span>
+                        <span>{{ $money($summary['cash']['other']) }}</span>
+                    </div>
                 @endif
                 <div class="hstack justify-content-between py-1 border-top mt-1 pt-2 fw-semibold"><span>Expected in drawer</span><span>{{ $money($summary['cash']['expected']) }}</span></div>
                 @if ($summary['cash']['counted'] !== null)
@@ -72,8 +82,28 @@
         </div>
     </div>
 
+    @if (($summary['expenses']['count'] ?? 0) > 0 || ($summary['purchases']['count'] ?? 0) > 0)
+        <div class="col-lg-4">
+            <div class="card h-100 mb-0">
+                <div class="card-header"><h5 class="card-title mb-0">Expenses &amp; purchases</h5></div>
+                <div class="card-body">
+                    @foreach ($summary['expenses']['by_category'] as $row)
+                        <div class="hstack justify-content-between py-1"><span class="text-muted">{{ $row['category'] }} <span class="fs-12">&times;{{ $row['count'] }}</span></span><span>{{ $money($row['amount']) }}</span></div>
+                    @endforeach
+                    @if ($summary['expenses']['count'] > 0)
+                        <div class="hstack justify-content-between py-1 border-top mt-1 pt-2 fw-semibold"><span>Expenses</span><span>{{ $money($summary['expenses']['amount']) }}</span></div>
+                    @endif
+                    @if ($summary['purchases']['count'] > 0)
+                        <div class="hstack justify-content-between py-1"><span class="text-muted">Stock purchases <span class="fs-12">&times;{{ $summary['purchases']['count'] }}</span></span><span>{{ $money($summary['purchases']['amount']) }}</span></div>
+                    @endif
+                    <p class="fs-12 text-muted mt-2 mb-0">Recorded while this day was open, from any account.</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @if ($summary['items'] !== [])
-        <div class="col-12">
+        <div class="{{ ($summary['expenses']['count'] ?? 0) > 0 || ($summary['purchases']['count'] ?? 0) > 0 ? 'col-lg-8' : 'col-12' }}">
             <div class="card mb-0">
                 <div class="card-header"><h5 class="card-title mb-0">Items sold</h5></div>
                 <div class="card-body p-0">

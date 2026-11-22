@@ -4,11 +4,15 @@ namespace App\Services;
 
 use App\Exceptions\PosException;
 use App\Models\Account;
+use App\Models\AccountTransaction;
 use App\Models\BusinessDay;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderItemVoid;
 use App\Models\Payment;
+use App\Models\Purchase;
 use App\Models\Shop;
 use App\Support\Money;
 use App\Tenancy\TenantContext;
@@ -27,19 +31,26 @@ class BusinessDays
 {
     public function __construct(private TenantContext $tenancy, private AccountLedger $ledger) {}
 
-    public function current(): ?BusinessDay
+    /**
+     * The open day, if any. Inside a transaction that posts money, pass $lock: it takes a
+     * shared lock on the day row, so closing the day (which locks it exclusively) waits for
+     * in-flight sales and expenses, and they wait for the close. Every drawer posting then
+     * lands either fully inside the day's figures or after it.
+     */
+    public function current(bool $lock = false): ?BusinessDay
     {
-        return BusinessDay::query()->open()->latest('id')->first();
+        return BusinessDay::query()->open()->latest('id')->when($lock, fn ($q) => $q->sharedLock())->first();
     }
 
+    /** The open day, locked as in current(). Use inside a transaction. */
     public function requireOpen(): BusinessDay
     {
-        return $this->current() ?? throw new PosException('The business day is not open. Open the day before taking orders.');
+        return $this->current(lock: true) ?? throw new PosException('The business day is not open. Open the day before taking orders.');
     }
 
-    public function cashDrawer(): Account
+    public function cashDrawer(bool $lock = false): Account
     {
-        return Account::query()->where('is_default_cash', true)->firstOrFail();
+        return Account::query()->where('is_default_cash', true)->when($lock, fn ($q) => $q->lockForUpdate())->firstOrFail();
     }
 
     public function open(string|int|float $countedCash, ?string $note = null): BusinessDay
@@ -52,7 +63,7 @@ class BusinessDays
                 throw new PosException('The business day is already open.');
             }
 
-            $drawer = $this->cashDrawer();
+            $drawer = $this->cashDrawer(lock: true);
             $expected = Money::of($drawer->current_balance);
             $counted = Money::of($countedCash);
 
@@ -95,7 +106,8 @@ class BusinessDays
                 throw new PosException('The cash count cannot be negative.');
             }
 
-            $drawer = $this->cashDrawer();
+            // Locked: no posting can change the drawer between reading it and closing.
+            $drawer = $this->cashDrawer(lock: true);
             $expected = Money::of($drawer->current_balance);
             $difference = Money::sub($counted, $expected);
 
@@ -170,8 +182,39 @@ class BusinessDays
 
         $open = Order::query()->open()->selectRaw('COUNT(*) as count, COALESCE(SUM(grand_total), 0) as amount')->first();
 
-        $cashSales = Money::of($byAccount->firstWhere('account_id', $drawer->id)?->amount);
+        // The drawer's own ledger for the day. Over/short entries are the cash counts themselves,
+        // so opening count + these entries must equal the drawer balance (expected cash).
+        $drawerRows = AccountTransaction::query()
+            ->where('account_id', $drawer->id)
+            ->where('business_day_id', $day->id)
+            ->where('type', '!=', 'over_short')
+            ->selectRaw('type, COUNT(*) as entries, SUM(amount) as amount')
+            ->groupBy('type')
+            ->get()
+            ->keyBy('type');
+
+        $cashSales = Money::of($drawerRows['sale']->amount ?? 0);
+        $movements = collect(AccountTransaction::TYPES)
+            ->filter(fn ($label, $type) => $type !== 'sale' && isset($drawerRows[$type]))
+            ->map(fn ($label, $type) => [
+                'label' => $label,
+                'entries' => (int) $drawerRows[$type]->entries,
+                'amount' => Money::of($drawerRows[$type]->amount),
+            ])
+            ->values()
+            ->all();
+        $fromLedger = Money::sum([$day->opening_cash_counted, ...$drawerRows->pluck('amount')->all()]);
         $expected = $day->isOpen() ? Money::of($drawer->current_balance) : Money::of($day->expected_cash);
+
+        $expenses = Expense::query()->counted()->where('business_day_id', $day->id)
+            ->selectRaw('expense_category_id, COUNT(*) as entries, SUM(amount) as amount')
+            ->groupBy('expense_category_id')
+            ->get();
+        $categoryNames = ExpenseCategory::query()->whereIn('id', $expenses->pluck('expense_category_id'))->pluck('name', 'id');
+
+        $purchases = Purchase::query()->where('business_day_id', $day->id)
+            ->selectRaw('COUNT(*) as entries, COALESCE(SUM(total), 0) as amount')
+            ->first();
 
         return [
             'sales' => Money::of($byAccount->sum('amount')),
@@ -206,10 +249,26 @@ class BusinessDays
                 'count' => (int) $open->count,
                 'amount' => Money::of($open->amount),
             ],
+            'expenses' => [
+                'count' => (int) $expenses->sum('entries'),
+                'amount' => Money::sum($expenses->pluck('amount')->all()),
+                'by_category' => $expenses->map(fn ($row) => [
+                    'category' => $categoryNames[$row->expense_category_id] ?? 'Category #'.$row->expense_category_id,
+                    'count' => (int) $row->entries,
+                    'amount' => Money::of($row->amount),
+                ])->sortByDesc('amount')->values()->all(),
+            ],
+            'purchases' => [
+                'count' => (int) $purchases->entries,
+                'amount' => Money::of($purchases->amount),
+            ],
             'cash' => [
                 'opening' => Money::of($day->opening_cash_counted),
                 'sales' => $cashSales,
-                'other' => Money::sub(Money::sub($expected, $day->opening_cash_counted), $cashSales),
+                // Expenses, purchases, transfers and money in/out paid through the drawer.
+                'movements' => $movements,
+                // Anything in the balance the ledger can't explain (should always be zero).
+                'other' => Money::sub($expected, $fromLedger),
                 'expected' => $expected,
                 'counted' => $day->isOpen() ? null : Money::of($day->counted_cash),
                 'difference' => $day->isOpen() ? null : Money::of($day->cash_difference),

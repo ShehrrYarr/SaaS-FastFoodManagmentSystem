@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -52,6 +53,12 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
             'bank' => $sum($active->where('type', 'bank')),
             'wallet' => $sum($active->where('type', 'wallet')),
         ];
+    }
+
+    #[On('money-moved')]
+    public function refresh(): void
+    {
+        unset($this->accounts, $this->recent, $this->totals);
     }
 
     public function openCreate(): void
@@ -161,6 +168,11 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
 <div>
     <x-page-header title="Accounts" subtitle="Where your money goes: the cash drawer, bank accounts and mobile wallets.">
         <x-slot:actions>
+            @if ($this->accounts->where('is_active', true)->count() > 1)
+                <button type="button" class="btn btn-light btn-touch" wire:click="$dispatch('move-money', { mode: 'transfer' })">
+                    <i class="ri-arrow-left-right-line"></i>Transfer
+                </button>
+            @endif
             <button type="button" class="btn btn-primary btn-touch" wire:click="openCreate">
                 <i class="ri-add-line"></i>Add account
             </button>
@@ -184,7 +196,7 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
                                 <i class="{{ $account->icon() }}"></i>
                             </span>
                             <div class="min-w-0 flex-grow-1">
-                                <div class="fw-semibold text-truncate">{{ $account->name }}</div>
+                                <a href="{{ route('shop.accounts.show', ['account' => $account->id]) }}" wire:navigate class="fw-semibold text-truncate d-block text-reset">{{ $account->name }}</a>
                                 <div class="fs-12 text-muted">
                                     {{ $account->typeLabel() }}
                                     @if ($account->is_default_cash) &middot; <span class="text-primary">Default</span> @endif
@@ -196,6 +208,12 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
                                     <i class="ri-more-2-fill"></i>
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end">
+                                    <a href="{{ route('shop.accounts.show', ['account' => $account->id]) }}" wire:navigate class="dropdown-item"><i class="ri-file-list-3-line me-2"></i>Ledger</a>
+                                    @if ($account->is_active)
+                                        <button type="button" class="dropdown-item" wire:click="$dispatch('move-money', { mode: 'in', account: {{ $account->id }} })"><i class="ri-add-line me-2"></i>Money in</button>
+                                        <button type="button" class="dropdown-item" wire:click="$dispatch('move-money', { mode: 'out', account: {{ $account->id }} })"><i class="ri-subtract-line me-2"></i>Money out</button>
+                                    @endif
+                                    <div class="dropdown-divider"></div>
                                     <button type="button" class="dropdown-item" wire:click="openEdit({{ $account->id }})"><i class="ri-pencil-line me-2"></i>Edit</button>
                                     @unless ($account->is_default_cash)
                                         <button type="button" class="dropdown-item" wire:click="toggleActive({{ $account->id }})">
@@ -210,7 +228,10 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
                             </div>
                         </div>
                         <div class="fs-12 text-muted">Balance</div>
-                        <div class="fs-4 fw-bold {{ (float) $account->current_balance < 0 ? 'text-danger' : '' }}">{{ $this->shop->money($account->current_balance) }}</div>
+                        <div class="hstack justify-content-between align-items-end gap-2">
+                            <div class="fs-4 fw-bold {{ (float) $account->current_balance < 0 ? 'text-danger' : '' }}">{{ $this->shop->money($account->current_balance) }}</div>
+                            <a href="{{ route('shop.accounts.show', ['account' => $account->id]) }}" wire:navigate class="btn btn-sm btn-light flex-shrink-0">Ledger <i class="ri-arrow-right-s-line"></i></a>
+                        </div>
                         @if ($account->account_title || $account->account_number)
                             <div class="fs-13 text-muted mt-2 text-truncate">
                                 {{ $account->account_title }}@if ($account->account_title && $account->account_number) &middot; @endif<span class="sfms-mono">{{ $account->account_number }}</span>
@@ -227,7 +248,7 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
         <div class="card-body p-0">
             @if ($this->recent->isEmpty())
                 <x-empty-state icon="ri-exchange-dollar-line" title="No transactions yet">
-                    Sales, transfers and expenses will appear here once the POS is in use.
+                    Sales, transfers and expenses will appear here.
                 </x-empty-state>
             @else
                 <div class="table-responsive">
@@ -239,7 +260,11 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
                             @foreach ($this->recent as $txn)
                                 <tr wire:key="txn-{{ $txn->id }}">
                                     <td data-label="Date">{{ $txn->transacted_at->timezone($this->shop->timezone)->format('d M Y, h:i A') }}</td>
-                                    <td data-label="Account">{{ $txn->account?->name }}</td>
+                                    <td data-label="Account">
+                                        @if ($txn->account)
+                                            <a href="{{ route('shop.accounts.show', ['account' => $txn->account_id]) }}" wire:navigate>{{ $txn->account->name }}</a>
+                                        @endif
+                                    </td>
                                     <td data-label="Type">{{ $txn->typeLabel() }}@if ($txn->note)<div class="fs-12 text-muted">{{ $txn->note }}</div>@endif</td>
                                     <td data-label="Amount" class="text-end fw-semibold {{ (float) $txn->amount < 0 ? 'text-danger' : 'text-success' }}">
                                         {{ (float) $txn->amount < 0 ? '−' : '+' }}{{ $this->shop->money(abs((float) $txn->amount)) }}
@@ -253,6 +278,8 @@ new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
             @endif
         </div>
     </div>
+
+    <livewire:accounts.move-money />
 
     <x-modal wire:model="showModal" :title="$editingId ? 'Edit account' : 'Add account'">
         <form wire:submit="save" novalidate>

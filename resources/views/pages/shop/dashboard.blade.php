@@ -39,6 +39,57 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
             : null;
     }
 
+    /** Sales for the last 7 days (roles that may see reports). */
+    #[Computed]
+    public function week(): ?array
+    {
+        if (! auth('shop')->user()->can('reports.view')) {
+            return null;
+        }
+
+        $today = $this->shop->today();
+
+        return app(\App\Services\Reports::class)->quick($today->copy()->subDays(6)->toDateString(), $today->toDateString());
+    }
+
+    /** Chart data for sfmsBarChart (sfms-charts.js). */
+    public function weekChart(): array
+    {
+        $points = $this->week['trend']['points'] ?? [];
+
+        return [
+            'name' => 'Sales',
+            'labels' => array_map(fn ($p) => \Illuminate\Support\Carbon::parse($p['key'])->format('D'), $points),
+            'tooltipLabels' => array_column($points, 'label'),
+            'values' => array_map('floatval', array_column($points, 'sales')),
+            'money' => true,
+            'symbol' => $this->shop->currency_symbol,
+            'height' => 220,
+        ];
+    }
+
+    /** This month so far: sales, costs and the profit estimate. */
+    #[Computed]
+    public function month(): ?array
+    {
+        if (! auth('shop')->user()->can('reports.view')) {
+            return null;
+        }
+
+        $today = $this->shop->today();
+
+        return app(\App\Services\Reports::class)->quick($today->copy()->startOfMonth()->toDateString(), $today->toDateString());
+    }
+
+    /** Account balances (roles that manage accounts). */
+    #[Computed]
+    public function balances()
+    {
+        return auth('shop')->user()->can('accounts.manage')
+            ? \App\Models\Account::query()->active()->ordered()->get()
+            : collect();
+    }
+
     /** Ingredients at or below their warning level (inventory shops, for stock managers). */
     #[Computed]
     public function lowStock()
@@ -156,6 +207,67 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
                 @can('purchases.manage')
                     <a href="{{ route('shop.purchases.create') }}" wire:navigate class="btn btn-sm btn-light mt-3"><i class="ri-truck-line"></i> Record a purchase</a>
                 @endcan
+            </div>
+        </div>
+    @endif
+
+    @if ($this->week || $this->balances->isNotEmpty())
+        <div class="row g-3 mb-4">
+            @if ($this->week)
+                <div class="col-lg-8">
+                    <div class="card h-100 mb-0">
+                        <div class="card-header hstack justify-content-between gap-2">
+                            <div>
+                                <h5 class="card-title mb-0">Sales, last 7 days</h5>
+                                <div class="fs-13 text-muted">{{ $this->shop->money($this->week['sales']) }} from {{ $this->week['orders'] }} {{ \Illuminate\Support\Str::plural('order', $this->week['orders']) }}</div>
+                            </div>
+                            <a href="{{ route('shop.reports', ['range' => '7d']) }}" wire:navigate class="btn btn-sm btn-light">Reports <i class="ri-arrow-right-s-line"></i></a>
+                        </div>
+                        <div class="card-body">
+                            <div class="sfms-chart is-short" wire:ignore wire:key="week-{{ md5(json_encode($this->weekChart())) }}" x-data="sfmsBarChart(@js($this->weekChart()))"
+                                 role="img" aria-label="Sales for each of the last 7 days: {{ collect($this->week['trend']['points'])->map(fn ($p) => $p['label'].' '.$this->shop->money($p['sales']))->implode(', ') }}">
+                                <div x-ref="plot"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <div class="{{ $this->week ? 'col-lg-4' : 'col-lg-5' }}">
+                <div class="vstack gap-3 h-100">
+                    @if ($this->month)
+                        <div class="card mb-0">
+                            <div class="card-header"><h5 class="card-title mb-0">{{ $this->shop->today()->format('F') }} so far</h5></div>
+                            <div class="card-body sfms-figures">
+                                <div><span class="text-muted">Sales</span><span>{{ $this->shop->money($this->month['sales']) }}</span></div>
+                                @if ($this->month['cost'] !== null)
+                                    <div><span class="text-muted">− Ingredient cost</span><span>{{ $this->shop->money($this->month['cost']) }}</span></div>
+                                @endif
+                                <div><span class="text-muted">− Expenses</span><span>{{ $this->shop->money($this->month['expenses']) }}</span></div>
+                                <div class="is-total {{ (float) $this->month['profit'] < 0 ? 'text-danger' : '' }}"><span>Profit (estimate)</span><span>{{ $this->shop->money($this->month['profit']) }}</span></div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($this->balances->isNotEmpty())
+                        <div class="card mb-0 flex-grow-1">
+                            <div class="card-header hstack justify-content-between">
+                                <h5 class="card-title mb-0">Accounts</h5>
+                                <a href="{{ route('shop.accounts.index') }}" wire:navigate class="fs-13">All accounts</a>
+                            </div>
+                            <div class="card-body sfms-figures">
+                                @foreach ($this->balances as $account)
+                                    <div>
+                                        <a href="{{ route('shop.accounts.show', ['account' => $account->id]) }}" wire:navigate class="text-reset text-truncate">
+                                            <i class="{{ $account->icon() }} text-muted me-1"></i>{{ $account->name }}
+                                        </a>
+                                        <span class="fw-semibold text-nowrap {{ (float) $account->current_balance < 0 ? 'text-danger' : '' }}">{{ $this->shop->money($account->current_balance) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
     @endif

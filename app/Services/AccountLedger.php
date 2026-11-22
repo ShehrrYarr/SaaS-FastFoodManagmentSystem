@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\PosException;
 use App\Models\Account;
 use App\Models\AccountTransaction;
 use App\Support\Money;
+use App\Tenancy\TenantContext;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,7 @@ class AccountLedger
 {
     /**
      * @param  string|int|float  $amount  Signed: positive adds money, negative takes it out.
+     * @param  bool  $mustCover  Refuse a withdrawal the account's balance cannot cover.
      */
     public function post(
         Account $account,
@@ -29,16 +32,24 @@ class AccountLedger
         ?string $note = null,
         ?DateTimeInterface $at = null,
         ?int $businessDayId = null,
+        bool $mustCover = false,
     ): AccountTransaction {
         if (! array_key_exists($type, AccountTransaction::TYPES)) {
             throw new InvalidArgumentException("Unknown account transaction type [{$type}].");
         }
 
-        return DB::transaction(function () use ($account, $type, $amount, $source, $note, $at, $businessDayId) {
+        return DB::transaction(function () use ($account, $type, $amount, $source, $note, $at, $businessDayId, $mustCover) {
             $locked = Account::query()->acrossShops()->whereKey($account->getKey())->lockForUpdate()->firstOrFail();
 
             $amount = Money::of($amount);
             $balance = Money::add($locked->current_balance, $amount);
+
+            if ($mustCover && Money::isNegative($amount) && Money::isNegative($balance)) {
+                $shop = app(TenantContext::class)->shop();
+                $has = $shop ? $shop->money($locked->current_balance) : $locked->current_balance;
+
+                throw new PosException($locked->name.' only has '.$has.'.');
+            }
 
             $transaction = new AccountTransaction([
                 'tenant_id' => $locked->tenant_id,
@@ -63,5 +74,20 @@ class AccountLedger
 
             return $transaction;
         });
+    }
+
+    /**
+     * Locks several accounts in id order (so two transfers in opposite
+     * directions queue instead of deadlocking) and returns them by id.
+     *
+     * @param  list<int>  $ids
+     * @return \Illuminate\Support\Collection<int, Account>
+     */
+    public function lock(array $ids)
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        sort($ids);
+
+        return Account::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
     }
 }

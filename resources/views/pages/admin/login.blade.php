@@ -58,10 +58,11 @@ new #[Layout('layouts::auth')] #[Title('Super Admin sign in')] class extends Com
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
         // Only honour an "intended" URL that belongs to the Super Admin area.
+        // (Compared with full URLs, so it also works when the app lives under a path like /sfmg.)
         $intended = (string) session()->pull('url.intended');
-        $path = (string) parse_url($intended, PHP_URL_PATH);
+        $area = url('super-admin');
 
-        $this->redirect(str_starts_with($path, '/super-admin') ? $intended : route('admin.dashboard'));
+        $this->redirect($intended === $area || str_starts_with($intended, $area.'/') ? $intended : route('admin.dashboard'));
     }
 };
 ?>

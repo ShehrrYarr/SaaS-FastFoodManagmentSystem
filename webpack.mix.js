@@ -29,6 +29,7 @@ mix.sass(path.join(folder.src_assets, 'scss/app.scss'), 'assets/css/app.min.css'
    .sass(path.join(folder.src_assets, 'scss/icons.scss'), 'assets/css/icons.min.css')
    .sass(path.join(folder.src_assets, 'scss/custom.scss'), 'assets/css/custom.min.css')
    .sass(path.join(folder.src_assets, 'scss/sfms.scss'), 'assets/css/sfms.min.css')
+   .sass(path.join(folder.src_assets, 'scss/landing.scss'), 'assets/css/landing.min.css')
    .setPublicPath(folder.dist);
 
 // Copy assets (images, JS, libs, json) to the dist folder

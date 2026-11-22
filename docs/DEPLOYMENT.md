@@ -233,3 +233,12 @@ Kitchen tickets, receipts and day reports open the browser's print dialog. For p
 - [ ] Reverb running under Supervisor/NSSM; Open Tabs shows **● Live**
 - [ ] Nightly database backup tested by restoring it once
 - [ ] Each shop: Cash Drawer counted and the first business day opened
+
+## 10. A public demo under a path (e.g. `http://your-ip/sfmg`)
+
+Used for the live demo server, next to other apps on the same Apache.
+
+- **Apache:** a separate `conf-available/sfmg.conf` (`a2enconf sfmg`) with `Alias /sfmg /var/www/<app>/public`, the Laravel rewrite rules with `RewriteBase /sfmg/`, and for live updates `ProxyPass /sfmg/app http://127.0.0.1:8080/app upgrade=websocket` (needs `a2enmod proxy_http`). No other site's config is touched.
+- **`.env`:** `APP_URL=http://your-ip/sfmg`, `ASSET_URL=/sfmg`, `SESSION_PATH=/sfmg` and a unique `SESSION_COOKIE` (other apps on the same host must not share the cookie), `REVERB_CLIENT_HOST=your-ip`, `REVERB_CLIENT_PORT=80`, `REVERB_CLIENT_SCHEME=http`, `REVERB_CLIENT_PATH=/sfmg`, and `SFMS_DEMO_SHOP=blg`.
+- **Data:** `php artisan sfms:demo-reset --force` (instead of `migrate`) builds the demo, and a cron entry runs it nightly as the web user. Create your own Super Admin with `php artisan sfms:super-admin`; resets keep it.
+- **Reverb:** a systemd unit running `php artisan reverb:start --host=127.0.0.1 --port=8080` as the web user.

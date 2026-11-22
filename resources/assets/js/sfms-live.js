@@ -76,6 +76,7 @@
                 broadcaster: 'reverb',
                 key: config.key,
                 wsHost: config.host,
+                wsPath: config.path || '',
                 wsPort: config.port,
                 wssPort: config.port,
                 forceTLS: config.scheme === 'https',

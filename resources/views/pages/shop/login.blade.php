@@ -82,10 +82,10 @@ new #[Layout('layouts::auth')] #[Title('Sign in')] class extends Component
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
         // Only honour an "intended" URL inside this shop's workspace.
+        // (Compared with full URLs, so it also works when the app lives under a path like /sfmg.)
         $intended = (string) session()->pull('url.intended');
-        $path = (string) parse_url($intended, PHP_URL_PATH);
 
-        $this->redirect(str_starts_with($path, '/'.$shop->prefix.'/') ? $intended : route('shop.dashboard'));
+        $this->redirect(str_starts_with($intended, url($shop->prefix).'/') ? $intended : route('shop.dashboard'));
     }
 };
 ?>
@@ -145,7 +145,7 @@ new #[Layout('layouts::auth')] #[Title('Sign in')] class extends Component
             </form>
 
             <div class="text-center mt-4 fs-13 text-muted">
-                Wrong shop? <a href="{{ route('home') }}" class="link-primary" wire:navigate>Enter another shop code</a>
+                Wrong shop? <a href="{{ route('find') }}" class="link-primary" wire:navigate>Enter another shop code</a>
             </div>
         </div>
     </div>

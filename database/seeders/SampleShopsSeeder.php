@@ -18,6 +18,12 @@ use Illuminate\Support\Carbon;
  */
 class SampleShopsSeeder extends Seeder
 {
+    /**
+     * Password for every sample login (documented in the README). A public demo
+     * (`sfms:demo-reset`) sets a random one per login, so the README logins never work there.
+     */
+    public static ?string $password = 'password';
+
     public function run(CreateShop $createShop, TenantContext $tenancy): void
     {
         $today = Carbon::now(Shop::DEFAULT_TIMEZONE)->startOfDay();
@@ -79,7 +85,7 @@ class SampleShopsSeeder extends Seeder
                 continue;
             }
 
-            $shop = $createShop->handle($data['shop'], $data['owner'] + ['password' => 'password']);
+            $shop = $createShop->handle($data['shop'], $data['owner'] + ['password' => static::password()]);
 
             $tenancy->run($shop, function (Shop $shop) use ($data) {
                 foreach ($data['staff'] as $staff) {
@@ -89,10 +95,15 @@ class SampleShopsSeeder extends Seeder
                         'name' => $staff['name'],
                         'email' => $staff['email'],
                         'username' => $staff['username'],
-                        'password' => 'password',
+                        'password' => static::password(),
                     ]);
                 }
             });
         }
+    }
+
+    private static function password(): string
+    {
+        return static::$password ?? \Illuminate\Support\Str::random(40);
     }
 }

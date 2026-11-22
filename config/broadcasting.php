@@ -51,6 +51,8 @@ return [
                 'host' => env('REVERB_CLIENT_HOST') ?: env('REVERB_HOST'),
                 'port' => (int) (env('REVERB_CLIENT_PORT') ?: env('REVERB_PORT', 443)),
                 'scheme' => env('REVERB_CLIENT_SCHEME') ?: env('REVERB_SCHEME', 'https'),
+                // When the app lives under a path (e.g. /sfmg) and the proxy forwards /sfmg/app to Reverb.
+                'path' => rtrim((string) env('REVERB_CLIENT_PATH', ''), '/'),
             ],
         ],
 

@@ -1060,3 +1060,55 @@ html[data-sfms-live="on"] .sfms-live-off {
     padding-bottom: 0.625rem;
   }
 }
+
+// ------------------------------------------------------------------ public demo bar
+
+.sfms-demo-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 1rem;
+  margin-bottom: 1.25rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(var(--#{$prefix}primary-rgb), 0.45);
+  background: rgba(var(--#{$prefix}primary-rgb), 0.06);
+  font-size: 0.875rem;
+}
+
+.sfms-demo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fff;
+  background: var(--#{$prefix}primary);
+}
+
+.sfms-demo-text {
+  flex: 1 1 16rem;
+}
+
+.sfms-demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+.sfms-demo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  min-height: 2rem;
+}
+
+.sfms-demo-wa {
+  color: #128c4a;
+}

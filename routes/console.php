@@ -1,7 +1,12 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\SampleShopsSeeder;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
 
@@ -48,6 +53,51 @@ Artisan::command('sfms:super-admin {email? : Sign-in email} {--name= : Display n
 
     return 0;
 })->purpose('Create a Super Admin (or reset one\'s password)');
+
+/*
+| Public demo: wipes the database and builds fresh sample data (two weeks of history,
+| today open). Runs nightly from cron on the demo server. Only allowed when
+| SFMS_DEMO_SHOP is set. Real Super Admins are kept; every sample login gets a random
+| password (the demo is entered with the one-tap buttons), so the README logins never work.
+*/
+Artisan::command('sfms:demo-reset {--force : Do not ask for confirmation}', function () {
+    if (blank(config('sfms.demo_shop'))) {
+        $this->error('This deletes the whole database, so it only runs on a demo install (set SFMS_DEMO_SHOP in .env).');
+
+        return 1;
+    }
+
+    $database = config('database.connections.'.config('database.default').'.database');
+
+    if (! $this->option('force') && ! $this->confirm("Delete ALL data in [{$database}] and build fresh demo data?")) {
+        return 1;
+    }
+
+    $admins = Schema::hasTable('users')
+        ? DB::table('users')->whereNull('tenant_id')->where('is_super_admin', true)->where('email', '!=', 'admin@sfms.test')
+            ->get()->map(fn ($row) => Arr::except((array) $row, ['id']))->all()
+        : [];
+
+    $this->call('down', ['--retry' => 60]);
+
+    try {
+        $this->call('migrate:fresh', ['--force' => true]);
+
+        DatabaseSeeder::$withSampleSuperAdmin = false;
+        SampleShopsSeeder::$password = null;
+        $this->call('db:seed', ['--force' => true]);
+
+        foreach ($admins as $row) {
+            DB::table('users')->insert($row);
+        }
+    } finally {
+        $this->call('up');
+    }
+
+    $this->info('Demo rebuilt. Kept '.count($admins).' Super Admin(s).');
+
+    return 0;
+})->purpose('Rebuild the public demo (deletes all data; demo installs only)');
 
 /*
 | Fills in REVERB_APP_ID / REVERB_APP_KEY / REVERB_APP_SECRET in .env (like key:generate),

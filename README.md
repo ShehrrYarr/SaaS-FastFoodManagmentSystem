@@ -120,7 +120,9 @@ Burger Lab and Pizza Point also come with a sample menu (sizes, add-ons and comb
 
 **Two weeks of trading history** (`SampleSalesSeeder`) for Burger Lab and Pizza Point, so the dashboard, reports, ledgers and day reports have something to show. Every past day is opened with a cash count, sells about 15 to 30 orders through the real services (dine-in, takeaway and delivery, kitchen tickets, stock, split across cash, bank and wallet), records expenses, restock purchases, banking transfers and an owner drawing, and is closed with a count (a few days a little short or over). Each step runs with the clock set to that moment, so every ledger reads in time order and every Z report balances. Today is left open with a few orders paid and some tabs running. The history is the same every time (fixed random seed), and a shop that already has orders is skipped.
 
-The home page (http://127.0.0.1:8000) asks for a shop code and forwards to that shop's sign-in page.
+The home page (http://127.0.0.1:8000) is the public **landing page**: what SFMS does, real screenshots (`resources/assets/images/landing`), WhatsApp contact and "Ask for the pricing" buttons (number in `SFMS_WHATSAPP`), and a shop-code box that forwards to a shop's sign-in page (also at `/find`).
+
+**Public demo.** With `SFMS_DEMO_SHOP=blg` in `.env`, the landing page shows one-tap buttons that sign visitors straight into that shop as its Owner, Manager or Cashier (`/demo/owner`, `/demo/manager`, `/demo/cashier`; no password). Each entry repairs what a previous visitor could break (the role's permissions, a disabled login), and the shop shows a demo bar with role switching. `php artisan sfms:demo-reset` wipes the database and rebuilds the sample data; on a demo server it runs nightly from cron, keeps your own Super Admins, and gives every sample login a random password so the README logins don't work there. Leave `SFMS_DEMO_SHOP` empty on installs with real shops: the demo routes then return 404 and the reset refuses to run.
 
 Herozi's original demo pages are available locally at http://127.0.0.1:8000/_herozi/index for reference (local environment only).
 

@@ -11,6 +11,7 @@
             'host' => $reverb['client']['host'] ?? request()->getHost(),
             'port' => $reverb['client']['port'] ?? 443,
             'scheme' => $reverb['client']['scheme'] ?? 'https',
+            'path' => $reverb['client']['path'] ?? '',
             'auth' => url('/broadcasting/auth'),
         ]
         : null;

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DemoController;
 use App\Http\Controllers\Shop\PrintController;
 use App\Http\Controllers\Shop\ReportController;
 use App\Models\Shop;
@@ -9,10 +10,17 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Landing: find your shop
+| Public: landing page, shop finder, one-tap demo
 |--------------------------------------------------------------------------
 */
-Route::livewire('/', 'pages::home')->name('home');
+Route::livewire('/', 'pages::landing')->name('home');
+Route::livewire('find', 'pages::find-shop')->name('find');
+
+// Signs into the demo shop (config sfms.demo_shop) as Owner, Manager or Cashier; 404 when no demo is set.
+Route::get('demo/{role}', [DemoController::class, 'enter'])
+    ->whereIn('role', array_keys(DemoController::ROLES))
+    ->middleware('throttle:30,1')
+    ->name('demo');
 
 /*
 |--------------------------------------------------------------------------

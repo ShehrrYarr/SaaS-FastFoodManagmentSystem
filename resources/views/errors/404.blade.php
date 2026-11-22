@@ -6,5 +6,5 @@
 ])
 
 @section('actions')
-    <a href="{{ route('home') }}" class="btn btn-primary btn-touch w-100">Find your shop</a>
+    <a href="{{ route('find') }}" class="btn btn-primary btn-touch w-100">Find your shop</a>
 @endsection

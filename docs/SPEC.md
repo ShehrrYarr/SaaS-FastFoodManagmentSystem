@@ -1,6 +1,6 @@
 # SFMS: Fast-Food Management & POS (Phase 1 spec)
 
-Status: **approved** · 2026-11-22 · M0, M1, M2 and M3 done
+Status: **approved** · 2026-11-22 · M0 to M4 done
 Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 
 ---
@@ -45,7 +45,7 @@ Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 | Extras in phase 1 | Customer directory (phone lookup auto-fills delivery details) |
 
 ### Not in phase 1
-Online ordering · tax · PRA/FBR fiscal integration · kitchen display screen · silent/Bluetooth printing · item/equal bill split · refunds after payment · wastage & stock-adjustment UI (the ledger supports it) · PIN login · Super Admin "login as shop" · plans/limits · multi-branch brands.
+Online ordering · tax · PRA/FBR fiscal integration · kitchen display screen · silent/Bluetooth printing · item/equal bill split · refunds after payment · PIN login · Super Admin "login as shop" · plans/limits · multi-branch brands.
 
 ---
 
@@ -86,12 +86,14 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 - `product_variants`: product_id, name (`Regular`, `Large`), price, is_default, is_available. Every product has at least one variant, and order lines always point to a variant.
 - `modifier_groups`: name, min_select, max_select, is_required · `modifier_options`: group_id, name, price, is_available · pivot `product_modifier_group`
 - `combo_items`: combo_product_id, product_variant_id, quantity (fixed components; choices like "pick a drink" are modifier groups on the combo)
-- `recipe_items`: recipeable (variant **or** modifier option), ingredient_id, quantity + unit as entered, base_quantity (converted to the ingredient's unit)
+- `recipe_items`: recipeable (variant **or** modifier option), ingredient_id, quantity + unit as entered, base_quantity (converted to the ingredient's unit) · unique per recipeable + ingredient. A deal's use = its own recipe (optional, e.g. packaging) + its items' recipes × their quantity. Edited on a dedicated **Recipes** page (not the product form).
 
 **Inventory** (screens visible only when tracking is on)
 - `ingredients`: name, unit (`kg` `g` `L` `ml` `pcs` `pair` `dozen`), current_stock, low_stock_threshold, avg_cost, is_active
-- `purchases`: voucher_number, supplier_name, purchased_on, account_id (null = unpaid), total, note · `purchase_items`: ingredient_id, quantity, unit, base_quantity, unit_cost, line_total
-- `stock_movements` (ledger): ingredient_id, type (`purchase` `sale` `void_return` `adjustment` `wastage`), quantity (signed), balance_after, unit_cost, source (morph), user_id, note
+- `purchases`: voucher_number (`BLG-PUR-000001`), sequence, supplier_name, purchased_on, account_id (null = unpaid), business_day_id, total, note, created_by · `purchase_items`: ingredient_id, quantity, unit, base_quantity, unit_cost, line_total
+- `stock_movements` (ledger): ingredient_id, type (`opening` `purchase` `sale` `void_return` `adjustment` `wastage`), quantity (signed), balance_after, unit_cost, source (morph: KOT or purchase), business_day_id, user_id, note
+- `order_items.stock_snapshot` (json): what one unit of the line used when sent, so voids return exactly that even after a recipe change
+- Average cost is a weighted average on purchase: (stock on hand × avg + amount paid) / (stock on hand + quantity bought). Opening stock sets it. Counts (`adjustment`) and `wastage` have their own screens (built in M4).
 - Unit conversion within families: mass `kg=1000 g`, volume `L=1000 ml`, count `pcs=1, pair=2, dozen=12`.
 
 **Floor & customers**

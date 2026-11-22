@@ -39,6 +39,17 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
             : null;
     }
 
+    /** Ingredients at or below their warning level (inventory shops, for stock managers). */
+    #[Computed]
+    public function lowStock()
+    {
+        if (! $this->shop->inventory_tracking_enabled || ! auth('shop')->user()->can('inventory.manage')) {
+            return collect();
+        }
+
+        return \App\Models\Ingredient::query()->active()->low()->orderBy('current_stock')->limit(8)->get();
+    }
+
     #[Computed]
     public function openTabs(): array
     {
@@ -124,6 +135,31 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
         </div>
     </div>
 
+    @if ($this->lowStock->isNotEmpty())
+        <div class="card mb-4 border-warning-subtle">
+            <div class="card-header hstack justify-content-between">
+                <h5 class="card-title mb-0"><i class="ri-error-warning-line text-warning me-1"></i>Low stock</h5>
+                <a href="{{ route('shop.inventory.index', ['filter' => 'low']) }}" wire:navigate class="fs-13">View all</a>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    @foreach ($this->lowStock as $ingredient)
+                        @php($badge = $ingredient->stockBadge())
+                        <div class="col-sm-6 col-xl-3" wire:key="low-{{ $ingredient->id }}">
+                            <div class="hstack justify-content-between border rounded-3 px-3 py-2 h-100">
+                                <span class="fw-medium text-truncate me-2">{{ $ingredient->name }}</span>
+                                <span class="badge {{ $badge['class'] }} flex-shrink-0">{{ $ingredient->stockLabel() }}</span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @can('purchases.manage')
+                    <a href="{{ route('shop.purchases.create') }}" wire:navigate class="btn btn-sm btn-light mt-3"><i class="ri-truck-line"></i> Record a purchase</a>
+                @endcan
+            </div>
+        </div>
+    @endif
+
     <div class="row g-3">
         <div class="col-lg-7">
             <div class="card mb-0 h-100">
@@ -149,7 +185,7 @@ new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
                         <dd class="col-sm-8 mb-0">
                             @if ($this->shop->inventory_tracking_enabled)
                                 <span class="badge bg-success-subtle text-success">On</span>
-                                <span class="text-muted fs-13 ms-1">Stock is deducted from recipes once ingredients and recipes are set up (Inventory, coming next).</span>
+                                <span class="text-muted fs-13 ms-1">Recipes take stock when items go to the kitchen{{ $this->shop->allow_negative_stock ? '; stock may go below zero (with a warning).' : '; items are blocked when stock runs out.' }}</span>
                             @else
                                 <span class="badge bg-secondary-subtle text-secondary">Off</span>
                                 <span class="text-muted fs-13 ms-1">Products sell without stock tracking.</span>

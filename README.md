@@ -10,8 +10,8 @@ The full phase 1 plan and decisions are in [docs/SPEC.md](docs/SPEC.md).
 | M1 Tenancy + Super Admin (shops, guards, middleware, roles, shop login) | Done |
 | M2 Shop setup (menu, tables, waiters, staff, roles, accounts, customers, settings) | Done |
 | M3 POS, tabs, KOT, checkout, day close | Done |
-| M4 Inventory (ingredients, recipes, purchases) | Next |
-| M5 Money & reports | Planned |
+| M4 Inventory (ingredients, recipes, purchases) | Done |
+| M5 Money & reports | Next |
 | M6 Live updates (Reverb), mobile pass, docs | Planned |
 
 ---
@@ -98,7 +98,7 @@ Tests run against the `sfms_testing` MySQL database (see `phpunit.xml`).
 | | | `cashier@ppj.test` / `usman` | Cashier role |
 | Shawarma Stop DHA | http://127.0.0.1:8000/ssd/login | `owner@ssd.test` or `ali` | **Suspended**: shows how blocked shops behave |
 
-Burger Lab and Pizza Point also come with a sample menu (sizes, add-ons and combo deals), tables, waiters, riders, bank/wallet accounts with opening balances, and a few customers.
+Burger Lab and Pizza Point also come with a sample menu (sizes, add-ons and combo deals), tables, waiters, riders, bank/wallet accounts with opening balances, and a few customers. Burger Lab also gets 16 ingredients with opening stock, recipes for every menu size and stock-using add-on, and one purchase (`php artisan db:seed --class=SampleInventorySeeder` adds them to an existing database).
 
 The home page (http://127.0.0.1:8000) asks for a shop code and forwards to that shop's sign-in page.
 
@@ -137,6 +137,19 @@ Herozi's original demo pages are available locally at http://127.0.0.1:8000/_her
 
 Kitchen tickets, receipts and day reports are 80mm pages under `/{shop}/print/...`. The POS prints them through a hidden iframe, so the browser's print dialog appears. The printer button in the POS order panel turns kitchen tickets or receipts off on that device (saved in the browser), for phones and tills without a printer. For silent printing today, start Chrome with `--kiosk-printing` and set the thermal printer as the default; QZ Tray comes later.
 
+## Inventory (M4)
+
+Only for shops with **Settings → Track ingredient inventory** on; otherwise the pages redirect to the dashboard and nothing is deducted.
+
+- **Ingredients** (`/{shop}/ingredients`): each is counted in one unit (`kg g L ml pcs pair dozen`) with an optional low-stock level. Opening stock and its cost are entered when you add one. **Count** sets the stock to what was counted (the difference is an adjustment); **Record wastage** takes stock out with a reason.
+- **Recipes** (`/{shop}/recipes`): what one serving of each menu size (and each add-on that uses stock) takes. Enter any unit of the same kind, e.g. 200 g of a kg ingredient. Deals use their items' recipes automatically. The page shows ingredient cost and food-cost % per item.
+- **Purchases** (`/{shop}/purchases`): voucher `BLG-PUR-000001`, lines in any compatible unit (buy buns by the dozen, count them in pcs), paid from an account or left unpaid. Stock goes up and the average cost becomes a weighted average.
+- **Stock ledger** (`/{shop}/stock-ledger`): every change, signed, with the balance after it and a link to the order or purchase.
+- **At the POS**: sending to the kitchen takes the recipes (item + add-ons + deal items) in the same transaction, and each line remembers what one unit used, so voids and cancels give back exactly that even if the recipe changed later. With **Allow negative stock** off, a send that would take an ingredient below zero is refused with the shortfall; with it on, the send goes through and the cashier sees a low/negative warning.
+- **Low stock** shows on the dashboard for users with `inventory.manage`.
+
+Unit conversion: `kg = 1000 g`, `L = 1000 ml`, `dozen = 12 pcs`, `pair = 2 pcs`. Quantities are stored with 4 decimals and calculated exactly (bcmath).
+
 ## Front-end notes
 
 - Pages are Livewire 4 single-file components in `resources/views/pages/...`, routed with `Route::livewire()`.
@@ -150,4 +163,6 @@ Kitchen tickets, receipts and day reports are 80mm pages under `/{shop}/print/..
 - **Livewire state between requests.** Livewire keeps its persistent-middleware state in memory and skips re-running the checks when the previous request had the same route. `AppServiceProvider` flushes that state after every request, so the shop and permission checks can never be skipped in long-running workers (Octane) or tests. Keep that line.
 - **PHP version.** Laravel 13 needs PHP 8.3, and `php -v` on this machine may still report 8.2.
 - **Bootstrap backdrops inside Livewire components.** Bootstrap 5.3 puts an offcanvas backdrop next to the panel, so a Livewire re-render would delete it. `sfms.js` tells Livewire's morph to skip `.offcanvas-backdrop` / `.modal-backdrop`; keep that hook.
-- **Locking reads in order code.** Inside a transaction MySQL serves plain reads from a snapshot, which can miss lines another till just added. `App\Services\Orders` reloads order lines and checks table occupancy with `lockForUpdate()`; keep that pattern for stock in M4.
+- **Locking reads in order code.** Inside a transaction MySQL serves plain reads from a snapshot, which can miss lines another till just added. `App\Services\Orders` reloads order lines and checks table occupancy with `lockForUpdate()`, and `App\Services\Stock` locks ingredient rows **in id order** so concurrent tills queue instead of deadlocking. Order transactions retry up to 3 times if MySQL still picks one as a deadlock victim. `ShopSequence::next()` locks an existing counter directly (no `INSERT IGNORE` first), because two tills upgrading shared locks deadlock.
+- **Concurrency test.** `tests/Feature/StockConcurrencyTest.php` runs 4 PHP processes selling at once against `sfms_testing`. It can't use transactions, so it rebuilds that database before and after (about 30 s). It is skipped if the config is cached.
+- **`@php(...)` with `@php … @endphp` in one template.** Blade matches a block from the first `@php` to the next `@endphp`, so an inline `@php($x = …)` *before* a block form swallows everything in between. Use block form in templates that have both.

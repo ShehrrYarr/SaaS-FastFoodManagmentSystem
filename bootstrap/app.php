@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'shop.member' => EnsureUserBelongsToShop::class,
             'shop.active' => EnsureShopIsActive::class,
             'super.admin' => EnsureSuperAdmin::class,
+            'shop.inventory' => \App\Http\Middleware\EnsureInventoryEnabled::class,
         ]);
 
         // The shop must be known before auth runs, so guests are sent to the right login page.

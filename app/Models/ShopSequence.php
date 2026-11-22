@@ -26,21 +26,29 @@ class ShopSequence extends Model
     public static function next(int $tenantId, string $key, string $scope = '', int $startAt = 1): int
     {
         return DB::transaction(function () use ($tenantId, $key, $scope, $startAt) {
-            $now = now();
-
-            static::query()->insertOrIgnore([
-                'tenant_id' => $tenantId,
-                'key' => $key,
-                'scope' => $scope,
-                'next_value' => $startAt,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-
-            $row = static::query()
+            $find = fn () => static::query()
                 ->where(['tenant_id' => $tenantId, 'key' => $key, 'scope' => $scope])
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            // Lock the existing counter straight away. (INSERT IGNORE on an existing row takes
+            // a shared lock first, and two tills upgrading shared locks at once deadlock.)
+            $row = $find();
+
+            if (! $row) {
+                $now = now();
+
+                static::query()->insertOrIgnore([
+                    'tenant_id' => $tenantId,
+                    'key' => $key,
+                    'scope' => $scope,
+                    'next_value' => $startAt,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+                $row = $find() ?? throw new \RuntimeException("Could not reserve sequence [{$key}].");
+            }
 
             $value = $row->next_value;
 

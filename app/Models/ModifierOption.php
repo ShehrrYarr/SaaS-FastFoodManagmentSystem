@@ -30,4 +30,10 @@ class ModifierOption extends Model
     {
         return $this->belongsTo(ModifierGroup::class, 'modifier_group_id');
     }
+
+    /** What one of these uses from inventory. */
+    public function recipeItems(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(RecipeItem::class, 'recipeable')->orderBy('id');
+    }
 }

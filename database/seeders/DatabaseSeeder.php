@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class,
             SampleShopsSeeder::class,
             SampleShopDataSeeder::class,
+            SampleInventorySeeder::class,
         ]);
     }
 }

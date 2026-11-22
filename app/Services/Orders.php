@@ -27,11 +27,15 @@ use Illuminate\Support\Facades\DB;
  */
 class Orders
 {
+    /** Retries a transaction MySQL picked as a deadlock victim. */
+    private const ATTEMPTS = 3;
+
     public function __construct(
         private TenantContext $tenancy,
         private BusinessDays $days,
         private OrderLines $lines,
         private AccountLedger $ledger,
+        private Stock $stock,
     ) {}
 
     // ---------------------------------------------------------------- send to kitchen
@@ -56,6 +60,7 @@ class Orders
             $order = $order ? $this->lockOpen($order) : $this->create($details, $day);
 
             $kot = $this->newKot($order, $day, 'new');
+            $sent = [];
 
             foreach ($lines as $line) {
                 $optionIds = $line['option_ids'] ?? array_column($line['options'] ?? [], 'id');
@@ -86,15 +91,19 @@ class Orders
                         'price' => $option['price'],
                     ]);
                 }
+
+                $sent[] = ['item' => $item, 'option_ids' => array_column($priced['options'], 'id')];
             }
 
-            // M4: when inventory tracking is on, deduct recipe stock for these lines here
-            // (ingredient rows locked in id order), inside this same transaction.
+            // Inventory: take what the recipes use, in this same transaction (rolls back with the send).
+            if ($this->stock->enabled()) {
+                $kot->stockWarnings = $this->stock->takeForKitchen($kot, $sent, $day, $order->order_number);
+            }
 
             $this->saveTotals($order);
 
             return $kot->setRelation('order', $order);
-        });
+        }, self::ATTEMPTS);
     }
 
     /** Creates the order header: number, daily token, table/customer checks. */
@@ -138,7 +147,7 @@ class Orders
             $this->saveTotals($order);
 
             return $order;
-        });
+        }, self::ATTEMPTS);
     }
 
     /**
@@ -244,7 +253,7 @@ class Orders
             $this->saveTotals($order);
 
             return $order;
-        });
+        }, self::ATTEMPTS);
     }
 
     /**
@@ -270,13 +279,12 @@ class Orders
 
             $kot = $this->newKot($order, $day, 'void');
             $this->recordVoid($order, $item, $quantity, $reason, $kot, $day);
-
-            // M4: return the stock for the voided quantity here.
+            $this->stock->returnFromVoid($item, $quantity, $kot, $day, $order->order_number);
 
             $this->saveTotals($order);
 
             return $kot->setRelation('order', $order);
-        });
+        }, self::ATTEMPTS);
     }
 
     /** Cancels an unpaid order: voids whatever is left (one VOID KOT) and frees the table. */
@@ -296,7 +304,9 @@ class Orders
             $kot = $active->isNotEmpty() ? $this->newKot($order, $day, 'void') : null;
 
             foreach ($active as $item) {
-                $this->recordVoid($order, $item, $item->activeQuantity(), 'Order cancelled: '.$reason, $kot, $day);
+                $quantity = $item->activeQuantity();
+                $this->recordVoid($order, $item, $quantity, 'Order cancelled: '.$reason, $kot, $day);
+                $this->stock->returnFromVoid($item, $quantity, $kot, $day, $order->order_number);
             }
 
             $order->fill([
@@ -310,7 +320,7 @@ class Orders
             $this->saveTotals($order);
 
             return $kot?->setRelation('order', $order);
-        });
+        }, self::ATTEMPTS);
     }
 
     /** Hands a delivery order to a rider. */
@@ -334,7 +344,7 @@ class Orders
             ]);
 
             return $order;
-        });
+        }, self::ATTEMPTS);
     }
 
     // ---------------------------------------------------------------- checkout
@@ -405,7 +415,7 @@ class Orders
             }
 
             return $order->load('payments.account');
-        });
+        }, self::ATTEMPTS);
     }
 
     /** Same maths as checkout, without saving: for the checkout screen's live totals. */

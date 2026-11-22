@@ -28,7 +28,7 @@ class OrderItem extends Model
     protected $fillable = [
         'tenant_id', 'order_id', 'kot_id', 'product_id', 'product_variant_id',
         'name', 'variant_name', 'unit_price', 'modifiers_total', 'quantity', 'voided_quantity',
-        'discount_type', 'discount_value', 'discount_amount', 'line_total', 'note', 'combo_snapshot',
+        'discount_type', 'discount_value', 'discount_amount', 'line_total', 'note', 'combo_snapshot', 'stock_snapshot',
     ];
 
     protected function casts(): array
@@ -42,6 +42,7 @@ class OrderItem extends Model
             'discount_amount' => 'decimal:2',
             'line_total' => 'decimal:2',
             'combo_snapshot' => 'array',
+            'stock_snapshot' => 'array',
         ];
     }
 

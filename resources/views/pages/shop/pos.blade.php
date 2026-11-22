@@ -74,6 +74,9 @@ new #[Layout('layouts::shop')] class extends Component
     public string $checkoutDelivery = '';
     public array $payments = [];
 
+    /** Low-stock warnings from the last send (this request only). */
+    protected array $stockWarnings = [];
+
     public const VOID_REASONS = ['Customer changed mind', 'Wrong item entered', 'Out of stock', 'Kitchen mistake', 'Took too long'];
 
     public function mount(?Order $order = null): void
@@ -499,12 +502,14 @@ new #[Layout('layouts::shop')] class extends Component
             return;
         }
 
+        $warning = $this->stockWarnings ? ' '.implode('. ', $this->stockWarnings).'.' : '';
+
         if ($order->wasRecentlyCreated) {
-            $this->toast('success', $order->order_number.' sent to the kitchen · Token '.$order->token_number);
+            $this->toast($warning ? 'warning' : 'success', $order->order_number.' sent to the kitchen · Token '.$order->token_number.'.'.$warning);
             $this->dispatch('pos-close-cart');
             $this->startNewOrder();
         } else {
-            $this->toast('success', 'Sent to the kitchen.');
+            $this->toast($warning ? 'warning' : 'success', 'Sent to the kitchen.'.$warning);
         }
     }
 
@@ -525,6 +530,10 @@ new #[Layout('layouts::shop')] class extends Component
             $this->toast('warning', 'Add some items first.');
 
             return;
+        }
+
+        if ($this->stockWarnings) {
+            $this->toast('warning', implode('. ', $this->stockWarnings).'.');
         }
 
         $this->openCheckout();
@@ -552,6 +561,7 @@ new #[Layout('layouts::shop')] class extends Component
         }
 
         $this->printKot($kot);
+        $this->stockWarnings = $kot->stockWarnings;
         $this->forgetDraft();
         $this->lines = [];
 

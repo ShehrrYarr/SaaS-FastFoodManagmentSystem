@@ -12,6 +12,9 @@ class Kot extends Model
 {
     use BelongsToTenant;
 
+    /** Low or negative stock left after this ticket (not stored), for the POS to warn about. @var list<string> */
+    public array $stockWarnings = [];
+
     protected $attributes = [
         'type' => 'new',
         'printed_count' => 0,

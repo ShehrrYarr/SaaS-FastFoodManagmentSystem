@@ -55,6 +55,7 @@ final class Navigation
         if ($shop->inventory_tracking_enabled) {
             $groups[] = ['title' => 'Inventory', 'items' => [
                 ['label' => 'Ingredients', 'icon' => 'ri-archive-stack-line', 'route' => 'shop.inventory.index', 'permission' => 'inventory.manage', 'soon' => 'M4'],
+                ['label' => 'Recipes', 'icon' => 'ri-book-open-line', 'route' => 'shop.recipes.index', 'permission' => 'inventory.manage', 'soon' => 'M4'],
                 ['label' => 'Purchases', 'icon' => 'ri-truck-line', 'route' => 'shop.purchases.index', 'permission' => 'purchases.manage', 'soon' => 'M4'],
                 ['label' => 'Stock Ledger', 'icon' => 'ri-git-commit-line', 'route' => 'shop.stock.ledger', 'permission' => 'inventory.manage', 'soon' => 'M4'],
             ]];

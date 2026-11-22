@@ -82,6 +82,20 @@ Route::prefix('{shop}')
                 Route::get('day/{businessDay}', 'day')->whereNumber('businessDay')->name('day');
             });
 
+            // Inventory (only when the shop tracks stock).
+            Route::middleware('shop.inventory')->group(function () {
+                Route::middleware('can:inventory.manage')->group(function () {
+                    Route::livewire('ingredients', 'pages::shop.inventory.ingredients')->name('inventory.index');
+                    Route::livewire('recipes', 'pages::shop.inventory.recipes')->name('recipes.index');
+                    Route::livewire('stock-ledger', 'pages::shop.inventory.ledger')->name('stock.ledger');
+                });
+
+                Route::middleware('can:purchases.manage')->group(function () {
+                    Route::livewire('purchases', 'pages::shop.inventory.purchases')->name('purchases.index');
+                    Route::livewire('purchases/create', 'pages::shop.inventory.purchase-form')->name('purchases.create');
+                });
+            });
+
             Route::livewire('customers', 'pages::shop.customers')->middleware('can:customers.manage')->name('customers.index');
 
             Route::middleware('can:menu.manage')->group(function () {

@@ -40,4 +40,10 @@ class ProductVariant extends Model
 
         return $product->variants()->count() > 1 ? $product->name.' ('.$this->name.')' : $product->name;
     }
+
+    /** What one of these uses from inventory. */
+    public function recipeItems(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(RecipeItem::class, 'recipeable')->orderBy('id');
+    }
 }

@@ -23,6 +23,10 @@ const cssPairs = [
 // Ensure the assets folder is created in the dist directory
 fs.ensureDirSync(folder.dist_assets);
 
+// Font and image URLs inside the CSS are written relative to the CSS file (assets/css ->
+// ../../fonts/...), so the app also works under a path such as /sfmg, not only at the site root.
+mix.setResourceRoot('../../');
+
 // Compile SCSS and generate minified CSS files
 mix.sass(path.join(folder.src_assets, 'scss/app.scss'), 'assets/css/app.min.css')
    .sass(path.join(folder.src_assets, 'scss/bootstrap.scss'), 'assets/css/bootstrap.min.css')

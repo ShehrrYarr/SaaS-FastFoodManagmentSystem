@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,8 +16,21 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperAdminSeeder::class,
             SampleShopsSeeder::class,
-            SampleShopDataSeeder::class,
-            SampleInventorySeeder::class,
         ]);
+
+        // The sample shops' menus, accounts and opening stock are dated the day before
+        // their sales history starts, so every ledger reads in time order.
+        Carbon::setTestNow(Carbon::now()->subDays(SampleSalesSeeder::$historyDays + 1)->setTime(9, 0));
+
+        try {
+            $this->call([
+                SampleShopDataSeeder::class,
+                SampleInventorySeeder::class,
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+
+        $this->call(SampleSalesSeeder::class);
     }
 }

@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // POST /broadcasting/auth: shop staff only (see routes/channels.php).
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', ['middleware' => ['web', 'auth:shop']])
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'shop.resolve' => ResolveShopByPrefix::class,

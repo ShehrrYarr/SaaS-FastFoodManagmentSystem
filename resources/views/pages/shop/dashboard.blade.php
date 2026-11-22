@@ -12,6 +12,13 @@ use Livewire\Component;
 
 new #[Layout('layouts::shop')] #[Title('Dashboard')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['orders', 'day', 'money', 'stock'];
+    }
+
     #[Computed]
     public function shop(): Shop
     {

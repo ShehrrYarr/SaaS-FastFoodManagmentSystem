@@ -9,6 +9,16 @@ use Livewire\Component;
 
 new #[Layout('layouts::shop')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    /** Reload only when this order changed on another screen. */
+    protected function refreshLive(array $topics, array $orders): void
+    {
+        if (! in_array($this->orderId, $orders, true)) {
+            $this->skipRender();
+        }
+    }
+
     #[Locked]
     public int $orderId;
 

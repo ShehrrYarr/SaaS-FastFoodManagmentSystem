@@ -1,6 +1,6 @@
 # SFMS: Fast-Food Management & POS (Phase 1 spec)
 
-Status: **approved** · 2026-11-22 · M0 to M5 done
+Status: **approved** · 2026-11-22 · M0 to M6 done (phase 1 complete)
 Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 
 ---
@@ -14,7 +14,7 @@ Scope: multi-tenant SaaS for fast-food shops. Online ordering is a later phase.
 | Navigation | `wire:navigate` (+ `.hover` prefetch) everywhere, `@persist` for sidebar/header | SPA feel, no full reloads |
 | Theme | Herozi (Bootstrap 5, SCSS, Laravel Mix build kept as-is) | Template fidelity, light/dark |
 | Database | MySQL 8+ (local: WAMP MySQL 9.1) | |
-| Live updates | Laravel Reverb (websockets) on VPS; `wire:poll` fallback | Open tabs/tables update on every device |
+| Live updates | Laravel Reverb (websockets) on VPS; `wire:poll` fallback | Open tabs, POS, dashboard, orders, day, money and stock screens update on every device |
 | Hosting | VPS (queues, Reverb, scheduler) | |
 | Printing | 80mm browser print layouts now; QZ Tray silent printing later | |
 
@@ -128,7 +128,7 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 3. **Send to kitchen** commits the new lines in one `DB::transaction`: lock the order (reloading its lines with locking reads) → create a KOT → save the lines, priced again on the server → (if inventory is on) explode variant + modifier + combo recipes into ingredient totals, lock those ingredient rows **in id order** with `lockForUpdate()` (avoids deadlocks), apply the shop's negative-stock rule, decrement with exact MySQL decimals, write `stock_movements` → print the KOT.
 4. **Takeaway "Charge"** = send to kitchen + open checkout in one tap.
 
-**Open Tabs board**: table grid (free/occupied, amount, minutes open), waiter filter, delivery list (pending / out for delivery). Tap a tab to add items, change quantities/notes, void, or check out. Updates live.
+**Open Tabs board**: table grid (free/occupied, amount, minutes open), waiter filter, delivery list (pending / out for delivery). Tap a tab to add items, change quantities/notes, void, or check out. Updates live; if another till pays or cancels the order open in a POS, that POS says so and shows the order history.
 
 **Voids**: unsent lines can be removed freely. Sent lines need a reason (any user); this records `order_item_voids`, prints a VOID KOT and returns the stock in the same transaction.
 
@@ -172,7 +172,9 @@ All money is `decimal(12,2)`; all stock and recipe quantities are `decimal(14,4)
 - Shop login with **email or username** + password.
 - Shop prefix locked after creation; `order_prefix` editable.
 - No refunds or reopening of paid orders in phase 1.
-- Open-tabs board uses `wire:poll` until Reverb lands in M6.
+- Live updates (M6): one private channel per shop (`shop.{id}`, active staff of an accessible shop only). Changes are collected per request and sent once after the response as a hint (areas changed + order ids, no details); screens reload their own data. Open Tabs keeps a 60-second `wire:poll` as the fallback when Reverb is down.
+- Mobile (M6): every screen checked at 375 px; tap targets at least 44 px on phones and touch tablets.
+- Sample data (M6): two weeks of sales history for the two active sample shops, made through the real services with a fake clock; today left open with tabs running. Production installs create the Super Admin with `php artisan sfms:super-admin` and never seed.
 - Sample shops: **Burger Lab Gulberg** (`blg`, inventory ON, with the meat/sauce/bread burger example) and a second shop with inventory OFF. Credentials go in the seeder and README.
 
 ---

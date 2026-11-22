@@ -18,6 +18,13 @@ use Livewire\WithPagination;
 
 new #[Layout('layouts::shop')] #[Title('Expenses')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['money'];
+    }
+
     use WithPagination;
 
     #[Url(except: '')]

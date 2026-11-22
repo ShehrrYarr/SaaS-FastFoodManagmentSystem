@@ -37,6 +37,10 @@ mix.copyDirectory(path.join(folder.src_assets, 'js'), path.join(folder.dist_asse
 mix.copyDirectory(path.join(folder.src_assets, 'libs'), path.join(folder.dist_assets, 'libs'));
 mix.copyDirectory(path.join(folder.src_assets, 'json'), path.join(folder.dist_assets, 'json'));
 
+// Live updates (Laravel Reverb): browser builds of Laravel Echo and the Pusher protocol client.
+mix.copy('node_modules/laravel-echo/dist/echo.iife.js', path.join(folder.dist_assets, 'libs/laravel-echo/echo.iife.js'));
+mix.copy('node_modules/pusher-js/dist/web/pusher.min.js', path.join(folder.dist_assets, 'libs/pusher-js/pusher.min.js'));
+
 // Add BrowserSync for live-reloading during development
 if (process.argv.includes('--watch') || process.argv.includes('watch')) mix.browserSync({
     proxy: false,

@@ -7,6 +7,7 @@
 <html lang="en" class="h-100">
 <head>
     @include('layouts.partials.head', ['title' => $title ?? null, 'appTitle' => $shop->name])
+    @include('layouts.partials.live', ['shop' => $shop])
 </head>
 <body>
     @persist('shop-header-'.$shop->id)

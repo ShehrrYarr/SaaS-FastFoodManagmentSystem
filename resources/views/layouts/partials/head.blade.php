@@ -27,3 +27,4 @@
 <script src="{{ asset('assets/js/sfms-pos.js') }}"></script>
 <script>window.sfmsAssets = { apexcharts: @js(asset('assets/libs/apexcharts/apexcharts.min.js')) };</script>
 <script src="{{ asset('assets/js/sfms-charts.js') }}"></script>
+<script src="{{ asset('assets/js/sfms-live.js') }}"></script>

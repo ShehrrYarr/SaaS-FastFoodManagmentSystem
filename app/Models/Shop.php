@@ -30,6 +30,7 @@ class Shop extends Model
         'livewire', 'assets', 'build', 'storage', 'vendor', 'css', 'js', 'images', 'fonts',
         'favicon', 'robots', 'sitemap', '_herozi', 'www', 'app', 'static', 'public', 'docs',
         'help', 'support', 'status', 'billing', 'pos', 'dashboard', 'settings', 'shop', 'shops',
+        'broadcasting', 'reverb', 'apps',
     ];
 
     /** Mirrors the column defaults so freshly created models behave the same as loaded ones. */

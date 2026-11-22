@@ -26,6 +26,30 @@ use Livewire\Component;
  */
 new #[Layout('layouts::shop')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    /**
+     * Another till changed something: reload when it was this order, the day,
+     * or while the table picker is open (busy tables). If this order was paid
+     * or cancelled elsewhere, say so and show its history.
+     */
+    protected function refreshLive(array $topics, array $orders): void
+    {
+        $mine = $this->orderId !== null && in_array($this->orderId, $orders, true);
+
+        if (! $mine && ! in_array('day', $topics, true) && ! $this->showDetails) {
+            $this->skipRender();
+
+            return;
+        }
+
+        if ($mine && $this->order && ! $this->order->isOpen()) {
+            $this->dispatch('toast', type: 'warning', message: $this->order->order_number.' was '
+                .($this->order->status === 'completed' ? 'paid' : 'cancelled').' on another till.');
+            $this->redirectRoute('shop.orders.show', ['order' => $this->orderId], navigate: true);
+        }
+    }
+
     #[Locked]
     public ?int $orderId = null;
 

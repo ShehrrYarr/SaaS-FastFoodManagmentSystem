@@ -15,6 +15,13 @@ use Livewire\WithPagination;
 
 new #[Layout('layouts::shop')] #[Title('Stock Ledger')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['stock'];
+    }
+
     use WithPagination;
 
     #[Url(except: '')]

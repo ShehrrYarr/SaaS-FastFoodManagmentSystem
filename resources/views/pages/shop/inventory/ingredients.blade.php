@@ -16,6 +16,13 @@ use Livewire\Component;
 
 new #[Layout('layouts::shop')] #[Title('Ingredients')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['stock'];
+    }
+
     #[Url(except: '')]
     public string $filter = '';
 

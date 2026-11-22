@@ -12,7 +12,9 @@ The full phase 1 plan and decisions are in [docs/SPEC.md](docs/SPEC.md).
 | M3 POS, tabs, KOT, checkout, day close | Done |
 | M4 Inventory (ingredients, recipes, purchases) | Done |
 | M5 Money & reports (expenses, transfers, ledgers, reports, dashboard) | Done |
-| M6 Live updates (Reverb), mobile pass, docs | Next |
+| M6 Live updates (Reverb), mobile pass, sample history, setup docs | Done |
+
+Phase 1 is complete. Going live on a server: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
@@ -42,6 +44,12 @@ copy .env.example .env
 php artisan key:generate
 ```
 
+Generate the keys for live updates (Reverb):
+
+```powershell
+php artisan sfms:live-keys
+```
+
 Create the databases (WAMP: root with no password):
 
 ```powershell
@@ -51,6 +59,8 @@ C:\wamp64\bin\mysql\mysql9.1.0\bin\mysql.exe -u root -h 127.0.0.1 -e "CREATE DAT
 ```powershell
 php artisan migrate:fresh --seed
 ```
+
+This gives the Super Admin, three sample shops and two weeks of sales history (it takes about a minute and a half; see *Sample data* below).
 
 Link public storage (product photos and shop logos are stored there):
 
@@ -64,9 +74,17 @@ Build the front-end assets (required after cloning: `public/assets` is generated
 npm run production
 ```
 
+Run the app and, in a second terminal, the live-updates server:
+
 ```powershell
 php artisan serve --host=127.0.0.1 --port=8000
 ```
+
+```powershell
+php artisan reverb:start --host=127.0.0.1 --port=8080
+```
+
+The app works without Reverb running; screens then refresh on a timer instead of instantly (the Open Tabs board shows *Live* or *Every minute*).
 
 ### Assets
 
@@ -100,6 +118,8 @@ Tests run against the `sfms_testing` MySQL database (see `phpunit.xml`).
 
 Burger Lab and Pizza Point also come with a sample menu (sizes, add-ons and combo deals), tables, waiters, riders, bank/wallet accounts with opening balances, and a few customers. Burger Lab also gets 16 ingredients with opening stock, recipes for every menu size and stock-using add-on, and one purchase (`php artisan db:seed --class=SampleInventorySeeder` adds them to an existing database).
 
+**Two weeks of trading history** (`SampleSalesSeeder`) for Burger Lab and Pizza Point, so the dashboard, reports, ledgers and day reports have something to show. Every past day is opened with a cash count, sells about 15 to 30 orders through the real services (dine-in, takeaway and delivery, kitchen tickets, stock, split across cash, bank and wallet), records expenses, restock purchases, banking transfers and an owner drawing, and is closed with a count (a few days a little short or over). Each step runs with the clock set to that moment, so every ledger reads in time order and every Z report balances. Today is left open with a few orders paid and some tabs running. The history is the same every time (fixed random seed), and a shop that already has orders is skipped.
+
 The home page (http://127.0.0.1:8000) asks for a shop code and forwards to that shop's sign-in page.
 
 Herozi's original demo pages are available locally at http://127.0.0.1:8000/_herozi/index for reference (local environment only).
@@ -127,7 +147,7 @@ Herozi's original demo pages are available locally at http://127.0.0.1:8000/_her
    - Dine-in needs a table or a waiter. Delivery needs a phone and address; a known phone fills in the customer.
    - **Send & pay** sends the new lines and opens payment in one tap (takeaway).
    - Voids need the `orders.void` permission and a reason, and print a VOID ticket. Discounts need `orders.discount`.
-3. **Open Tabs** (`/{shop}/tabs`): every table (free or busy), unpaid takeaway orders and the delivery queue (send out with a rider, then mark paid). Refreshes every 15 seconds until live updates arrive in M6.
+3. **Open Tabs** (`/{shop}/tabs`): every table (free or busy), unpaid takeaway orders and the delivery queue (send out with a rider, then mark paid). Updates live as other tills work (see *Live updates*), and refreshes every minute as a fallback.
 4. **Payment**: one or more payment lines (split across the Cash Drawer, banks and wallets). They must add up to the bill exactly; extra cash goes in "Cash received" and the change is shown. Each payment posts to its account's ledger.
 5. **Close the day**: count the drawer again. Expected cash is the Cash Drawer's ledger balance; the difference is posted and the day's report (sales by account and type, items, voids, discounts, cash) is stored and printed as a Z report. Tabs still open carry over and count on the day they're paid.
 
@@ -160,6 +180,20 @@ Unit conversion: `kg = 1000 g`, `L = 1000 ml`, `dozen = 12 pcs`, `pair = 2 pcs`.
 - **Dashboard**: sales for the last 7 days and this month's profit estimate (`reports.view`), and account balances (`accounts.manage`).
 - Charts use ApexCharts (`resources/assets/js/sfms-charts.js`), loaded only on pages that draw one, in the theme's colours for light and dark mode. Each chart has its figures in a table under it.
 
+## Live updates (M6)
+
+Screens update the moment another till changes something: the Open Tabs board, the POS (if another till pays or cancels the order on screen, the cashier is told and taken to its history), the dashboard, orders, the business day, accounts, expenses, ingredients and the stock ledger.
+
+- **How it works:** model hooks (`AppServiceProvider::registerLiveUpdates`) note what changed during a request (`orders`, `day`, `money`, `stock` and the order ids) in `App\Support\LiveUpdates`. When the request ends, one `App\Events\ShopUpdated` per shop goes to the private channel `shop.{id}` through [Laravel Reverb](https://reverb.laravel.com). `resources/assets/js/sfms-live.js` (Laravel Echo + Pusher client) turns it into a Livewire event, and each screen (trait `App\Livewire\Concerns\RefreshesLive`) re-renders if it shows that area.
+- **The message carries no order details**, only what changed. Screens reload their own data through the usual permission checks.
+- **Who may listen:** `routes/channels.php` allows only active staff of that shop while the shop is accessible (not suspended or expired).
+- **If Reverb is down** nothing breaks: the send is logged and skipped (with short timeouts), and Open Tabs falls back to refreshing every minute. After a dropped connection the browser refreshes everything once when it reconnects.
+- **Settings:** `BROADCAST_CONNECTION=reverb` and the `REVERB_*` values in `.env` (`php artisan sfms:live-keys` generates the keys). `REVERB_CLIENT_*` is where browsers connect; behind a proxy that is your public host on 443/https (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)). Without a key, shop pages load no live-update scripts at all.
+
+## Mobile
+
+Every shop and Super Admin screen was checked at 375 px wide (no sideways scrolling; wide tables become stacked cards, chip rows scroll on their own). On phones and touch tablets every button, chip, form field and page link is at least 44 px tall (`sfms.scss`, "mobile pass"). The POS cart becomes a bottom bar that opens a sheet.
+
 ## Front-end notes
 
 - Pages are Livewire 4 single-file components in `resources/views/pages/...`, routed with `Route::livewire()`.
@@ -175,5 +209,7 @@ Unit conversion: `kg = 1000 g`, `L = 1000 ml`, `dozen = 12 pcs`, `pair = 2 pcs`.
 - **Bootstrap backdrops inside Livewire components.** Bootstrap 5.3 puts an offcanvas backdrop next to the panel, so a Livewire re-render would delete it. `sfms.js` tells Livewire's morph to skip `.offcanvas-backdrop` / `.modal-backdrop`; keep that hook.
 - **Locking reads in order code.** Inside a transaction MySQL serves plain reads from a snapshot, which can miss lines another till just added. `App\Services\Orders` reloads order lines and checks table occupancy with `lockForUpdate()`, and `App\Services\Stock` locks ingredient rows **in id order** so concurrent tills queue instead of deadlocking. Order transactions retry up to 3 times if MySQL still picks one as a deadlock victim. `ShopSequence::next()` locks an existing counter directly (no `INSERT IGNORE` first), because two tills upgrading shared locks deadlock.
 - **Day lock for money postings.** `BusinessDays::current(lock: true)` (and `requireOpen()`) take a *shared* lock on the open day row inside every transaction that moves money; closing the day takes it *exclusively* and locks the Cash Drawer row. Sales on several tills don't block each other, but a close waits for them and they wait for the close, so the close's expected cash and the day's ledger always agree. The day row is always locked first.
+- **Live updates are sent after the response.** `LiveUpdates` collects changes and sends them from a `terminating` callback, so they go out after every transaction has committed and never slow a sale down. Code that changes data outside a request (a command, a job) sends its messages when the process ends.
+- **Sample history runs with a fake clock.** `SampleSalesSeeder` uses `Carbon::setTestNow()` for each step; `DatabaseSeeder` dates the sample menus and accounts the day before the history starts. Don't call those seeders on a production database.
 - **Concurrency test.** `tests/Feature/StockConcurrencyTest.php` runs 4 PHP processes selling at once against `sfms_testing`. It can't use transactions, so it rebuilds that database before and after (about 30 s). It is skipped if the config is cached.
 - **`@php(...)` with `@php … @endphp` in one template.** Blade matches a block from the first `@php` to the next `@endphp`, so an inline `@php($x = …)` *before* a block form swallows everything in between. Use block form in templates that have both.

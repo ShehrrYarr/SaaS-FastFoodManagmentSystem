@@ -15,6 +15,13 @@ use Livewire\Component;
 
 new #[Layout('layouts::shop')] #[Title('Accounts')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['money'];
+    }
+
     public bool $showModal = false;
     public ?int $editingId = null;
     public string $name = '';

@@ -20,6 +20,13 @@ use Livewire\WithPagination;
 
 new #[Layout('layouts::shop')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['money'];
+    }
+
     use WithPagination;
 
     #[Locked]

@@ -20,6 +20,8 @@ use Livewire\Component;
  */
 new #[Layout('layouts::shop')] #[Title('Open Tabs')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
     public string $waiter = '';
 
     public bool $showDispatch = false;
@@ -118,9 +120,11 @@ new #[Layout('layouts::shop')] #[Title('Open Tabs')] class extends Component
     $occupied = $this->tables->filter(fn ($t) => $byTable->has($t->id))->count();
 @endphp
 
-<div wire:poll.15s.visible>
+{{-- Live updates refresh this board instantly; the slow poll keeps the minutes current and covers Reverb being down. --}}
+<div wire:poll.60s.visible>
     <x-page-header title="Open Tabs" subtitle="Tables, takeaway and delivery orders that haven't been paid yet.">
         <x-slot:actions>
+            <x-live-status />
             <a href="{{ route('shop.pos', ['type' => 'takeaway']) }}" wire:navigate class="btn btn-light btn-touch"><i class="ri-shopping-bag-3-line"></i>Takeaway</a>
             <a href="{{ route('shop.pos', ['type' => 'delivery']) }}" wire:navigate class="btn btn-light btn-touch"><i class="ri-e-bike-2-line"></i>Delivery</a>
             <a href="{{ route('shop.pos') }}" wire:navigate class="btn btn-primary btn-touch"><i class="ri-add-line"></i>New order</a>

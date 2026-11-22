@@ -13,6 +13,13 @@ use Livewire\WithPagination;
 
 new #[Layout('layouts::shop')] #[Title('Orders')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['orders'];
+    }
+
     use WithPagination;
 
     #[Url(except: '')]

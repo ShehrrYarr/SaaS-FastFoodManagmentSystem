@@ -14,6 +14,13 @@ use Livewire\WithPagination;
 
 new #[Layout('layouts::shop')] #[Title('Business Day')] class extends Component
 {
+    use \App\Livewire\Concerns\RefreshesLive;
+
+    protected function liveTopics(): array
+    {
+        return ['orders', 'day', 'money'];
+    }
+
     use WithPagination;
 
     public string $openingCount = '';

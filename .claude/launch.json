@@ -7,6 +7,13 @@
       "runtimeArgs": ["artisan", "serve", "--host=127.0.0.1", "--port=8000"],
       "port": 8000,
       "env": { "XDEBUG_MODE": "off" }
+    },
+    {
+      "name": "reverb",
+      "runtimeExecutable": "C:\\wamp64\\bin\\php\\php8.3.14\\php.exe",
+      "runtimeArgs": ["artisan", "reverb:start", "--host=127.0.0.1", "--port=8080"],
+      "port": 8080,
+      "env": { "XDEBUG_MODE": "off" }
     }
   ]
 }
